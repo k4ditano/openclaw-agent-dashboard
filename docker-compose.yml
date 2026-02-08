@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - PORT=3000
+      - WS_PORT=3001
+    restart: unless-stopped

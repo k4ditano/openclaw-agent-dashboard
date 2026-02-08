@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🤖 OpenClaw Agent Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>🤖 OpenClaw Agent Dashboard</h1>
+        <span class="connection-status" id="connectionStatus">🟢 Conectado</span>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-refresh" onclick="refreshAll()">🔄 Refrescar</button>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">🤖</div>
+        <div class="stat-content">
+          <div class="stat-value" id="totalAgents">0</div>
+          <div class="stat-label">Agentes Activos</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💬</div>
+        <div class="stat-content">
+          <div class="stat-value" id="activeConversations">0</div>
+          <div class="stat-label">Conversaciones</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-content">
+          <div class="stat-value" id="toolsExecuted">0</div>
+          <div class="stat-label">Herramientas Usadas</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-content">
+          <div class="stat-value" id="uptime">0s</div>
+          <div class="stat-label">Tiempo Ejecución</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="main-grid">
+      <!-- Agents Panel -->
+      <div class="panel agents-panel">
+        <div class="panel-header">
+          <h2>🤖 Agentes</h2>
+        </div>
+        <div class="panel-content" id="agentsList">
+          <!-- Agents will be rendered here -->
+        </div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="panel activity-panel">
+        <div class="panel-header">
+          <h2>📊 Actividad en Tiempo Real</h2>
+          <span class="live-indicator">● EN VIVO</span>
+        </div>
+        <div class="panel-content" id="activityFeed">
+          <!-- Activities will be rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Tools Panel -->
+    <div class="tools-panel">
+      <div class="panel-header">
+        <h2>🔧 Últimas Herramientas Ejecutadas</h2>
+      </div>
+      <div class="panel-content" id="toolsList">
+        <!-- Tool executions will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
