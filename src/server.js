@@ -10,10 +10,11 @@ import { Server } from 'socket.io';
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const PROJECT_ROOT = resolve(__dirname, '..');
 
 const PORT = process.env.PORT || 3000;
 const WS_PORT = process.env.WS_PORT || 3001;
@@ -160,7 +161,7 @@ const wss = new WebSocketServer({ port: WS_PORT });
 
 // Middleware
 app.use(express.json());
-app.use(express.static(join(__dirname, 'public')));
+app.use(express.static(join(PROJECT_ROOT, 'public')));
 
 // ============================================
 // REST API Endpoints
