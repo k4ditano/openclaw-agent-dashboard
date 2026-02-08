@@ -672,7 +672,7 @@ body {
 }
 
 /* Empty State */
-.empty-state {
+.empty-state, .no-data {
   text-align: center;
   padding: 60px 20px;
   color: var(--text-secondary);
@@ -685,4 +685,13 @@ body {
 
 .empty-state-text {
   font-size: 1rem;
+}
+
+.no-data {
+  padding: 40px 20px;
+}
+
+.no-data p {
+  font-size: 1rem;
+  color: var(--text-secondary);
 }
