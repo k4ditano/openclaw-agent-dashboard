@@ -152,6 +152,7 @@ function getActivityIcon(type) {
 // ============================================
 
 function renderAgents(agents) {
+function reversed(arr) { return [...arr].reverse(); }
   const container = document.getElementById('agentsList');
   
   if (!agents || agents.length === 0) {
@@ -233,7 +234,7 @@ function renderTools(tools) {
     return;
   }
   
-  container.innerHTML = tools.map(tool => `
+  container.innerHTML = reversed([...tools]).map(tool => `
     <div class="tool-card" data-tool-id="${tool.id}">
       <div class="tool-header">
         <div class="tool-icon">🔧</div>
@@ -505,7 +506,7 @@ function renderAgentChat() {
     return;
   }
   
-  container.innerHTML = conversations.map(msg => `
+  container.innerHTML = reversed([...conversations]).map(msg => `
     <div class="chat-message ${msg.role}">
       <div class="chat-avatar">${msg.role === 'user' ? '👤' : state.selectedAgent?.emoji || '🤖'}</div>
       <div class="chat-bubble">
@@ -531,7 +532,7 @@ function renderAgentReasoning() {
     return;
   }
   
-  container.innerHTML = reasoning.map(item => `
+  container.innerHTML = reversed([...reasoning]).map(item => `
     <div class="reasoning-item">
       <div class="reasoning-header">
         <div class="reasoning-icon">💡</div>
@@ -559,7 +560,7 @@ function renderAgentTools() {
     return;
   }
   
-  container.innerHTML = tools.map(tool => `
+  container.innerHTML = reversed([...tools]).map(tool => `
     <div class="tool-card">
       <div class="tool-header">
         <div class="tool-icon">🔧</div>
