@@ -106,6 +106,8 @@ const sampleReasoning = {
 // Utility Functions
 // ============================================
 
+function reversed(arr) { return [...arr].reverse(); }
+
 function formatUptime(ms) {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -152,7 +154,6 @@ function getActivityIcon(type) {
 // ============================================
 
 function renderAgents(agents) {
-function reversed(arr) { return [...arr].reverse(); }
   const container = document.getElementById('agentsList');
   
   if (!agents || agents.length === 0) {
