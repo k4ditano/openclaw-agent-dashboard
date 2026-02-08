@@ -9,4 +9,7 @@ services:
     environment:
       - PORT=3000
       - WS_PORT=3001
+      - OPENCLAW_DATA_DIR=/openclaw-data
+    volumes:
+      - /home/ubuntu/.openclaw/agents:/openclaw-data:ro
     restart: unless-stopped
