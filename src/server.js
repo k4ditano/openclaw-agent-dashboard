@@ -427,8 +427,13 @@ io.on('connection', (socket) => {
   socket.emit('agents', Array.from(openClawAgents.values()).map(a => ({
     id: a.id,
     name: a.name,
+    emoji: a.emoji,
+    type: a.type,
     status: a.status,
-    stats: a.stats
+    model: a.model,
+    stats: a.stats,
+    startedAt: a.startedAt,
+    lastActivity: a.lastActivity
   })));
   
   socket.emit('stats', {

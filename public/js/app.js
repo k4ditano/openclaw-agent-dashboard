@@ -413,27 +413,49 @@ window.refreshAll = refreshAll;
 // Agent Detail Modal Functions
 // ============================================
 
-function openAgentModal(agentId) {
+async function openAgentModal(agentId) {
   const agent = state.agents.find(a => a.id === agentId);
   if (!agent) return;
   
   state.selectedAgent = agent;
-  state.agentData = {
-    conversations: sampleConversations[agent.name] || [],
-    reasoning: sampleReasoning[agent.name] || [],
-    tools: state.tools.filter(t => t.agentId === agentId)
-  };
-  
-  // Update modal header
-  document.getElementById('modalAvatar').textContent = agent.emoji;
-  document.getElementById('modalTitle').textContent = agent.name;
-  document.getElementById('modalSubtitle').textContent = `${agent.model} • ${agent.status}`;
   
   // Reset to chat tab
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   document.querySelector('[data-tab="chat"]').classList.add('active');
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-chat').classList.add('active');
+  
+  // Update modal header
+  document.getElementById('modalAvatar').textContent = agent.emoji;
+  document.getElementById('modalTitle').textContent = agent.name;
+  document.getElementById('modalSubtitle').textContent = `${agent.model} • ${agent.status}`;
+  
+  // Show loading state
+  document.getElementById('chatMessages').innerHTML = '<div class="loading">Cargando...</div>';
+  document.getElementById('reasoningList').innerHTML = '<div class="loading">Cargando...</div>';
+  document.getElementById('agentTools').innerHTML = '<div class="loading">Cargando...</div>';
+  
+  try {
+    // Fetch real data from API
+    const [chatRes, toolsRes, reasoningRes] = await Promise.all([
+      fetch(`/api/agents/${agentId}/chat`),
+      fetch(`/api/agents/${agentId}/tools`),
+      fetch(`/api/agents/${agentId}/reasoning`)
+    ]);
+    
+    const chatData = await chatRes.json();
+    const toolsData = await toolsRes.json();
+    const reasoningData = await reasoningRes.json();
+    
+    state.agentData = {
+      conversations: chatData.success ? chatData.data : [],
+      tools: toolsData.success ? toolsData.data : [],
+      reasoning: reasoningData.success ? reasoningData.data : []
+    };
+  } catch (error) {
+    console.error('Error fetching agent data:', error);
+    state.agentData = { conversations: [], reasoning: [], tools: [] };
+  }
   
   // Render content
   renderAgentChat();
@@ -473,7 +495,7 @@ function renderAgentChat() {
   const container = document.getElementById('chatMessages');
   const conversations = state.agentData.conversations;
   
-  if (conversations.length === 0) {
+  if (!conversations || conversations.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">💬</div>
@@ -488,7 +510,7 @@ function renderAgentChat() {
       <div class="chat-avatar">${msg.role === 'user' ? '👤' : state.selectedAgent?.emoji || '🤖'}</div>
       <div class="chat-bubble">
         <div class="chat-role ${msg.role}">${msg.role === 'user' ? 'Usuario' : state.selectedAgent?.name || 'Agente'}</div>
-        <div class="chat-text">${escapeHtml(msg.text)}</div>
+        <div class="chat-text">${escapeHtml(msg.content)}</div>
         <div class="chat-time">${formatTime(msg.timestamp)}</div>
       </div>
     </div>
@@ -499,7 +521,7 @@ function renderAgentReasoning() {
   const container = document.getElementById('reasoningList');
   const reasoning = state.agentData.reasoning;
   
-  if (reasoning.length === 0) {
+  if (!reasoning || reasoning.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🧠</div>
@@ -513,8 +535,7 @@ function renderAgentReasoning() {
     <div class="reasoning-item">
       <div class="reasoning-header">
         <div class="reasoning-icon">💡</div>
-        <div class="reasoning-title">${escapeHtml(item.title)}</div>
-        <div class="reasoning-badge">${item.complexity} • ${item.effort}</div>
+        <div class="reasoning-title">${escapeHtml(item.content?.slice(0, 100) || 'Razonamiento')}${item.content?.length > 100 ? '...' : ''}</div>
       </div>
       <div class="reasoning-content">${escapeHtml(item.content)}</div>
       <div class="reasoning-meta">
@@ -528,7 +549,7 @@ function renderAgentTools() {
   const container = document.getElementById('agentTools');
   const tools = state.agentData.tools;
   
-  if (tools.length === 0) {
+  if (!tools || tools.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🔧</div>
@@ -547,7 +568,6 @@ function renderAgentTools() {
       </div>
       <div class="tool-meta">
         <span>${formatTime(tool.timestamp)}</span>
-        <span>${tool.duration}ms</span>
       </div>
     </div>
   `).join('');
