@@ -48,7 +48,7 @@ const sampleConversations = {
     { role: 'user', text: '¿Hay cambios importantes?', timestamp: Date.now() - 6500000 },
     { role: 'agent', text: 'Sí, hay nuevos tipos para CopilotModelInfo y cambios en la configuración de streaming. Voy a actualizar el cliente.ts paso a paso.', timestamp: Date.now() - 6300000 },
     { role: 'agent', text: 'He corregido los errores de tipo en agentService.ts. El código ya compila correctamente.', timestamp: Date.now() - 5400000 },
-    { role: 'user', text': 'Perfecto, crea un PR para que pueda revisarlo.', timestamp: Date.now() - 5000000 },
+    { role: "user", text: "Perfecto, crea un PR para que pueda revisarlo.", timestamp: Date.now() - 5000000 },
     { role: 'agent', text: 'Creando branch feature/sdk-v0.1.23-upgrade... ✓\nCreando commit con los cambios... ✓\nCreando PR #5... ✓\nPR creado: https://github.com/k4ditano/notnative-electron/pull/5', timestamp: Date.now() - 4500000 }
   ]
 };
