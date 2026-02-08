@@ -16,9 +16,90 @@ const state = {
     toolsExecuted: 0,
     uptime: 0
   },
+  selectedAgent: null,
+  agentData: {
+    conversations: [],
+    reasoning: [],
+    tools: []
+  },
   socket: null,
   reconnectAttempts: 0,
   maxReconnectAttempts: 5
+};
+
+// ============================================
+// Sample Conversation Data
+// ============================================
+
+const sampleConversations = {
+  'Dream ✨': [
+    { role: 'user', text: '¿Qué estamos trabajando hoy?', timestamp: Date.now() - 3600000 },
+    { role: 'agent', text: '¡Hola! Hoy vamos a mejorar el dashboard de agentes. Voy a analizar los requisitos y luego implementar las mejoras.', timestamp: Date.now() - 3500000 },
+    { role: 'user', text: 'Perfecto, me gustaría ver el historial en tiempo real de cada agente.', timestamp: Date.now() - 3400000 },
+    { role: 'agent', text: 'Entendido. Voy a implementar un modal interactivo que muestre:\n\n1. 📝 Historial de chat\n2. 🧠 Proceso de razonamiento\n3. 🔧 Herramientas ejecutadas\n4. 📊 Estadísticas del agente\n\nEmpiezo con el diseño...', timestamp: Date.now() - 3200000 },
+    { role: 'agent', text: 'He creado la estructura del modal en el HTML. Ahora voy a añadir los estilos CSS para que tenga un aspecto profesional.', timestamp: Date.now() - 2800000 },
+    { role: 'user', text: '¿Cuánto crees que tardará?', timestamp: Date.now() - 2500000 },
+    { role: 'agent', text: 'Con el nuevo SDK de GitHub Copilot, debería estar listo en unos 30-45 minutos. La implementación del WebSocket será rápida.', timestamp: Date.now() - 2400000 }
+  ],
+  'El Programador 💻': [
+    { role: 'user', text: 'Necesito que actualices el cliente de Copilot para usar la nueva versión del SDK.', timestamp: Date.now() - 7200000 },
+    { role: 'agent', text: 'Entendido. Voy a verificar la versión actual del SDK y planificar la actualización.', timestamp: Date.now() - 7100000 },
+    { role: 'agent', text: 'He actualizado el package.json de @github/copilot-sdk a la versión 0.1.23. Ahora voy a revisar los breaking changes.', timestamp: Date.now() - 6800000 },
+    { role: 'user', text: '¿Hay cambios importantes?', timestamp: Date.now() - 6500000 },
+    { role: 'agent', text: 'Sí, hay nuevos tipos para CopilotModelInfo y cambios en la configuración de streaming. Voy a actualizar el cliente.ts paso a paso.', timestamp: Date.now() - 6300000 },
+    { role: 'agent', text: 'He corregido los errores de tipo en agentService.ts. El código ya compila correctamente.', timestamp: Date.now() - 5400000 },
+    { role: 'user', text': 'Perfecto, crea un PR para que pueda revisarlo.', timestamp: Date.now() - 5000000 },
+    { role: 'agent', text: 'Creando branch feature/sdk-v0.1.23-upgrade... ✓\nCreando commit con los cambios... ✓\nCreando PR #5... ✓\nPR creado: https://github.com/k4ditano/notnative-electron/pull/5', timestamp: Date.now() - 4500000 }
+  ]
+};
+
+const sampleReasoning = {
+  'Dream ✨': [
+    {
+      title: 'Análisis de requisitos del dashboard',
+      content: 'El usuario quiere ver el historial en tiempo real de cada agente. Necesito diseñar una interfaz que muestre: conversaciones, razonamiento, herramientas y estadísticas de forma clara.',
+      complexity: 'medium',
+      effort: 'medium',
+      timestamp: Date.now() - 3300000
+    },
+    {
+      title: 'Selección de arquitectura UI',
+      content: 'Para mostrar múltiples tipos de información (chat, tools, reasoning), un modal con pestañas es la mejor opción. Permite al usuario cambiar entre vistas sin perder contexto.',
+      complexity: 'low',
+      effort: 'low',
+      timestamp: Date.now() - 3000000
+    },
+    {
+      title: 'Optimización de actualizaciones en tiempo real',
+      content: 'Debería suscribirme a eventos WebSocket específicos del agente cuando se abra el modal, y desuscribirme cuando se cierre para evitar tráfico innecesario.',
+      complexity: 'medium',
+      effort: 'medium',
+      timestamp: Date.now() - 2700000
+    }
+  ],
+  'El Programador 💻': [
+    {
+      title: 'Revisión de cambios en SDK v0.1.23',
+      content: 'Voy a leer el CHANGELOG del SDK para identificar breaking changes. Los principales cambios parecen estar en los tipos de modelo y la configuración de streaming.',
+      complexity: 'high',
+      effort: 'high',
+      timestamp: Date.now() - 7000000
+    },
+    {
+      title: 'Plan de actualización incremental',
+      content: 'En lugar de hacer un refactor grande, voy a actualizar el código paso a paso: primero tipos, luego configuración, finalmente pruebas.',
+      complexity: 'medium',
+      effort: 'medium',
+      timestamp: Date.now() - 6600000
+    },
+    {
+      title: 'Verificación de compatibilidad',
+      content: 'Necesito asegurarme de que los cambios no rompan la funcionalidad existente. Voy a ejecutar typecheck y lint antes de crear el PR.',
+      complexity: 'low',
+      effort: 'low',
+      timestamp: Date.now() - 5500000
+    }
+  ]
 };
 
 // ============================================
@@ -83,7 +164,7 @@ function renderAgents(agents) {
   }
   
   container.innerHTML = agents.map(agent => `
-    <div class="agent-card" data-agent-id="${agent.id}">
+    <div class="agent-card" data-agent-id="${agent.id}" onclick="openAgentModal('${agent.id}')" style="cursor: pointer;">
       <div class="agent-header">
         <div class="agent-avatar">${agent.emoji}</div>
         <div class="agent-info">
@@ -327,3 +408,191 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Expose refreshAll globally
 window.refreshAll = refreshAll;
+
+// ============================================
+// Agent Detail Modal Functions
+// ============================================
+
+function openAgentModal(agentId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!agent) return;
+  
+  state.selectedAgent = agent;
+  state.agentData = {
+    conversations: sampleConversations[agent.name] || [],
+    reasoning: sampleReasoning[agent.name] || [],
+    tools: state.tools.filter(t => t.agentId === agentId)
+  };
+  
+  // Update modal header
+  document.getElementById('modalAvatar').textContent = agent.emoji;
+  document.getElementById('modalTitle').textContent = agent.name;
+  document.getElementById('modalSubtitle').textContent = `${agent.model} • ${agent.status}`;
+  
+  // Reset to chat tab
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="chat"]').classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-chat').classList.add('active');
+  
+  // Render content
+  renderAgentChat();
+  renderAgentReasoning();
+  renderAgentTools();
+  renderAgentInfo();
+  
+  // Show modal
+  document.getElementById('agentModal').classList.add('active');
+  
+  // Subscribe to agent updates
+  if (state.socket) {
+    state.socket.emit('subscribe:agent', agentId);
+  }
+}
+
+function closeAgentModal() {
+  document.getElementById('agentModal').classList.remove('active');
+  
+  // Unsubscribe from agent updates
+  if (state.socket && state.selectedAgent) {
+    state.socket.emit('unsubscribe:agent', state.selectedAgent.id);
+  }
+  
+  state.selectedAgent = null;
+}
+
+function switchTab(button, tabName) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  button.classList.add('active');
+  
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+function renderAgentChat() {
+  const container = document.getElementById('chatMessages');
+  const conversations = state.agentData.conversations;
+  
+  if (conversations.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">💬</div>
+        <div class="empty-state-text">Sin mensajes aún</div>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = conversations.map(msg => `
+    <div class="chat-message ${msg.role}">
+      <div class="chat-avatar">${msg.role === 'user' ? '👤' : state.selectedAgent?.emoji || '🤖'}</div>
+      <div class="chat-bubble">
+        <div class="chat-role ${msg.role}">${msg.role === 'user' ? 'Usuario' : state.selectedAgent?.name || 'Agente'}</div>
+        <div class="chat-text">${escapeHtml(msg.text)}</div>
+        <div class="chat-time">${formatTime(msg.timestamp)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAgentReasoning() {
+  const container = document.getElementById('reasoningList');
+  const reasoning = state.agentData.reasoning;
+  
+  if (reasoning.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🧠</div>
+        <div class="empty-state-text">Sin procesos de razonamiento</div>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = reasoning.map(item => `
+    <div class="reasoning-item">
+      <div class="reasoning-header">
+        <div class="reasoning-icon">💡</div>
+        <div class="reasoning-title">${escapeHtml(item.title)}</div>
+        <div class="reasoning-badge">${item.complexity} • ${item.effort}</div>
+      </div>
+      <div class="reasoning-content">${escapeHtml(item.content)}</div>
+      <div class="reasoning-meta">
+        <span>⏱️ ${timeAgo(item.timestamp)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAgentTools() {
+  const container = document.getElementById('agentTools');
+  const tools = state.agentData.tools;
+  
+  if (tools.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔧</div>
+        <div class="empty-state-text">Sin herramientas ejecutadas</div>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = tools.map(tool => `
+    <div class="tool-card">
+      <div class="tool-header">
+        <div class="tool-icon">🔧</div>
+        <div class="tool-name">${escapeHtml(tool.tool)}</div>
+        <div class="tool-status ${tool.status}">${tool.status}</div>
+      </div>
+      <div class="tool-meta">
+        <span>${formatTime(tool.timestamp)}</span>
+        <span>${tool.duration}ms</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAgentInfo() {
+  const agent = state.selectedAgent;
+  if (!agent) return;
+  
+  const container = document.getElementById('agentInfo');
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+      <div class="stat-card">
+        <div class="stat-icon">💬</div>
+        <div class="stat-content">
+          <div class="stat-value">${agent.stats?.messagesSent || 0}</div>
+          <div class="stat-label">Mensajes Enviados</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-content">
+          <div class="stat-value">${agent.stats?.toolsUsed || 0}</div>
+          <div class="stat-label">Herramientas Usadas</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💭</div>
+        <div class="stat-content">
+          <div class="stat-value">${agent.stats?.conversations || 0}</div>
+          <div class="stat-label">Conversaciones</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-content">
+          <div class="stat-value">${timeAgo(agent.startedAt)}</div>
+          <div class="stat-label">Inicio Sesión</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Expose modal functions globally
+window.openAgentModal = openAgentModal;
+window.closeAgentModal = closeAgentModal;
+window.switchTab = switchTab;

@@ -194,6 +194,64 @@ app.get('/api/agents/:id/conversations', (req, res) => {
   res.json({ success: true, data: agentConversations });
 });
 
+// Get agent chat history (messages)
+app.get('/api/agents/:id/chat', (req, res) => {
+  const agent = agents.get(req.params.id);
+  if (!agent) {
+    return res.status(404).json({ success: false, error: 'Agent not found' });
+  }
+  
+  // Generate sample chat messages for demo
+  const sampleMessages = {
+    'Dream ✨': [
+      { role: 'user', text: '¿Qué estamos trabajando hoy?', timestamp: Date.now() - 3600000 },
+      { role: 'agent', text: '¡Hola! Hoy vamos a mejorar el dashboard de agentes. Voy a analizar los requisitos y luego implementar las mejoras.', timestamp: Date.now() - 3500000 },
+      { role: 'user', text: 'Perfecto, me gustaría ver el historial en tiempo real de cada agente.', timestamp: Date.now() - 3400000 },
+      { role: 'agent', text: 'Entendido. Voy a implementar un modal interactivo que muestre:\n\n1. 📝 Historial de chat\n2. 🧠 Proceso de razonamiento\n3. 🔧 Herramientas ejecutadas\n4. 📊 Estadísticas del agente\n\nEmpiezo con el diseño...', timestamp: Date.now() - 3200000 },
+      { role: 'agent', text: 'He creado la estructura del modal en el HTML. Ahora voy a añadir los estilos CSS.', timestamp: Date.now() - 2800000 },
+      { role: 'user', text: '¿Cuánto crees que tardará?', timestamp: Date.now() - 2500000 },
+      { role: 'agent', text: 'Con el nuevo SDK de GitHub Copilot, debería estar listo en unos 30-45 minutos.', timestamp: Date.now() - 2400000 }
+    ],
+    'El Programador 💻': [
+      { role: 'user', text: 'Necesito que actualices el cliente de Copilot para usar la nueva versión del SDK.', timestamp: Date.now() - 7200000 },
+      { role: 'agent', text: 'Entendido. Voy a verificar la versión actual del SDK y planificar la actualización.', timestamp: Date.now() - 7100000 },
+      { role: 'agent', text: 'He actualizado el package.json de @github/copilot-sdk a la versión 0.1.23.', timestamp: Date.now() - 6800000 },
+      { role: 'user', text: '¿Hay cambios importantes?', timestamp: Date.now() - 6500000 },
+      { role: 'agent', text: 'Sí, hay nuevos tipos para CopilotModelInfo y cambios en la configuración de streaming.', timestamp: Date.now() - 6300000 },
+      { role: 'agent', text: 'He corregido los errores de tipo en agentService.ts. El código ya compila correctamente.', timestamp: Date.now() - 5400000 },
+      { role: 'user', text: 'Perfecto, crea un PR.', timestamp: Date.now() - 5000000 },
+      { role: 'agent', text: 'PR creado: https://github.com/k4ditano/notnative-electron/pull/5', timestamp: Date.now() - 4500000 }
+    ]
+  };
+  
+  const messages = sampleMessages[agent.name] || [];
+  res.json({ success: true, data: messages });
+});
+
+// Get agent reasoning processes
+app.get('/api/agents/:id/reasoning', (req, res) => {
+  const agent = agents.get(req.params.id);
+  if (!agent) {
+    return res.status(404).json({ success: false, error: 'Agent not found' });
+  }
+  
+  const sampleReasoning = {
+    'Dream ✨': [
+      { title: 'Análisis de requisitos del dashboard', content: 'El usuario quiere ver el historial en tiempo real de cada agente. Necesito diseñar una interfaz que muestre múltiples tipos de información.', complexity: 'medium', effort: 'medium', timestamp: Date.now() - 3300000 },
+      { title: 'Selección de arquitectura UI', content: 'Un modal con pestañas es la mejor opción. Permite cambiar entre vistas sin perder contexto.', complexity: 'low', effort: 'low', timestamp: Date.now() - 3000000 },
+      { title: 'Optimización de actualizaciones en tiempo real', content: 'Suscribirse a eventos WebSocket específicos del agente cuando se abra el modal.', complexity: 'medium', effort: 'medium', timestamp: Date.now() - 2700000 }
+    ],
+    'El Programador 💻': [
+      { title: 'Revisión de cambios en SDK v0.1.23', content: 'Voy a leer el CHANGELOG del SDK para identificar breaking changes.', complexity: 'high', effort: 'high', timestamp: Date.now() - 7000000 },
+      { title: 'Plan de actualización incremental', content: 'Actualizar el código paso a paso: primero tipos, luego configuración, finalmente pruebas.', complexity: 'medium', effort: 'medium', timestamp: Date.now() - 6600000 },
+      { title: 'Verificación de compatibilidad', content: 'Ejecutar typecheck y lint antes de crear el PR.', complexity: 'low', effort: 'low', timestamp: Date.now() - 5500000 }
+    ]
+  };
+  
+  const reasoning = sampleReasoning[agent.name] || [];
+  res.json({ success: true, data: reasoning });
+});
+
 // Get recent activities
 app.get('/api/activities', (req, res) => {
   const limit = parseInt(req.query.limit) || 50;

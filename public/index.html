@@ -90,3 +90,39 @@
   <script src="/js/app.js"></script>
 </body>
 </html>
+
+<!-- Agent Detail Modal -->
+<div class="modal-overlay" id="agentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-avatar" id="modalAvatar">🤖</div>
+        <div>
+          <div class="modal-title" id="modalTitle">Agent Name</div>
+          <div class="modal-subtitle" id="modalSubtitle">Model • Status</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeAgentModal()">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="chat" onclick="switchTab(this, 'chat')">💬 Chat</button>
+      <button class="modal-tab" data-tab="reasoning" onclick="switchTab(this, 'reasoning')">🧠 Razonamiento</button>
+      <button class="modal-tab" data-tab="tools" onclick="switchTab(this, 'tools')">🔧 Herramientas</button>
+      <button class="modal-tab" data-tab="info" onclick="switchTab(this, 'info')">📊 Info</button>
+    </div>
+    <div class="modal-content">
+      <div class="tab-content active" id="tab-chat">
+        <div id="chatMessages"></div>
+      </div>
+      <div class="tab-content" id="tab-reasoning">
+        <div id="reasoningList"></div>
+      </div>
+      <div class="tab-content" id="tab-tools">
+        <div id="agentTools"></div>
+      </div>
+      <div class="tab-content" id="tab-info">
+        <div id="agentInfo"></div>
+      </div>
+    </div>
+  </div>
+</div>
