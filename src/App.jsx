@@ -413,11 +413,8 @@ function useAgentStatus() {
   return { status, loading }
 }
 
-function AgentCard({ agent, isSelected, onClick, metrics }) {
-  // Obtener métricas reales del agente si están disponibles
-  const agentMetrics = metrics?.agents?.[agent.id]
-  const realSessions = agentMetrics?.sessions || 0
-  const realTokens = agentMetrics?.tokens || 0
+function AgentCard({ agent, isSelected, onClick, agentData }) {
+  const data = agentData?.[agent.id] || {}
   
   return (
     <motion.div
@@ -433,32 +430,19 @@ function AgentCard({ agent, isSelected, onClick, metrics }) {
       style={{ boxShadow: isSelected ? `0 0 20px ${agent.glowColor}40` : 'none' }}
     >
       <div className="flex items-center gap-4">
-        <PixelCreature type={agent.id} size={64} />
+        <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h3 className={`text-lg font-bold ${agent.color}`}>{agent.name}</h3>
-            <span className="text-xs px-2 py-0.5 bg-white/10 rounded">{agent.role}</span>
-          </div>
-          <p className="text-xs text-gray-500">{agent.description}</p>
-          <div className="flex items-center gap-2 mt-2">
-            <span className={`text-xs font-mono ${statusLabels[agent.status].color}`}>
-              {statusLabels[agent.status].text}
+            <span className={`text-xs px-2 py-0.5 rounded ${data.status === 'running' ? 'bg-retro-green/20 text-retro-green' : 'bg-white/10 text-gray-400'}`}>
+              {data.status?.toUpperCase() || 'OFFLINE'}
             </span>
           </div>
+          <p className="text-xs text-gray-500">{data.task || 'Sin actividad'}</p>
         </div>
         <div className="text-right">
-          {metrics ? (
-            <>
-              <div className={`text-xl font-bold ${agent.color}`}>{realSessions}</div>
-              <div className="text-xs text-gray-400">SESIONES</div>
-              <div className="text-xs text-gray-600">{realTokens.toLocaleString()} tokens</div>
-            </>
-          ) : (
-            <>
-              <div className={`text-xl font-bold ${agent.color}`}>{agent.stats.active}</div>
-              <div className="text-xs text-gray-500">TAREAS</div>
-            </>
-          )}
+          <div className={`text-xl font-bold ${agent.color}`}>{data.progress || 0}%</div>
+          <div className="text-xs text-gray-500">PROGRESS</div>
         </div>
       </div>
     </motion.div>
@@ -682,7 +666,7 @@ function App() {
               agent={agent} 
               isSelected={selectedAgent.id === agent.id} 
               onClick={() => setSelectedAgent(agent)}
-              metrics={metrics}
+              agentData={agentStatus?.agents}
               isTalking={talkingAgent === agent.id}
             />
           ))}
@@ -700,37 +684,18 @@ function App() {
                 <Activity size={16} />
                 ESTADO DEL SISTEMA
               </h3>
-            {metrics ? (
-              <>
-                {[
-                  { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
-                  { label: 'Sesiones Activas', value: metrics.sessions.total, color: 'text-retro-cyan' },
-                  { label: 'Tokens Totales', value: metrics.sessions.totalTokens.toLocaleString(), color: 'text-retro-yellow' },
-                  { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
-                  { label: 'Última Actualización', value: new Date(metrics.generatedAt).toLocaleTimeString(), color: 'text-gray-400' },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                    <span className="text-gray-500 text-sm">{item.label}</span>
-                    <span className={`font-mono ${item.color}`}>{item.value}</span>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <>
-                {[
-                  { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
-                  { label: 'Telegram', value: 'CONECTADO', color: 'text-retro-green' },
-                  { label: 'Skills', value: '14/56', color: 'text-retro-yellow' },
-                  { label: 'Memoria', value: 'ACTIVA', color: 'text-retro-cyan' },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                    <span className="text-gray-500 text-sm">{item.label}</span>
-                    <span className={`font-mono ${item.color}`}>{item.value}</span>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
+              {[
+                { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
+                { label: 'Agentes Activos', value: Object.values(agentStatus?.agents || {}).filter(a => a.status === 'running' || a.status === 'active').length, color: 'text-retro-cyan' },
+                { label: 'Última Actualización', value: agentStatus?.generatedAt ? new Date(agentStatus.generatedAt).toLocaleTimeString() : '--:--:--', color: 'text-gray-400' },
+                { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-500 text-sm">{item.label}</span>
+                  <span className={`font-mono ${item.color}`}>{item.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>
