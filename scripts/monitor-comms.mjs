@@ -17,16 +17,8 @@ const agents = {
 
 // Filtrar textos técnicos - solo mensajes leggibles
 function isUsefulLog(text) {
-  // Ignorar outputs técnicos
-  if (text.includes('"text":"') || text.includes('timestamp":"') || text.includes('\\n')) return false
-  if (text.includes('Successfully wrote') || text.includes('bytes to')) return false
-  if (text.startsWith('{') || text.startsWith('[')) return false
-  if (text.includes('module.js') || text.includes('.js:')) return false
-  if (text.startsWith('$') && text.length < 50) return false
-  if (text.includes('│') || text.includes('━━')) return false
-  if (text.includes('(no output)')) return false
-  if (text.includes('==') || text.startsWith('---')) return false
-  if (text.length < 15) return false
+  // NO filtrar - mostrar todo
+  if (text.length < 5) return false
   return true
 }
 

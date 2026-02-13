@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, User, Eye, EyeOff, Folder, FileCode, Server, Search, Shield, Sparkles, Maximize2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X } from 'lucide-react'
 
 // Simple hash function for password verification
 const hashPassword = (password) => {
@@ -477,20 +477,20 @@ function TaskItem({ task, color }) {
   )
 }
 
-// Terminal-style Log Entry - expanded version
-function LogEntry({ log, color, expanded = false }) {
+// Terminal-style Log Entry
+function LogEntry({ log, color }) {
   const isUser = log.type === 'user'
   return (
     <motion.div 
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      className={`flex gap-2 ${expanded ? 'text-sm py-2' : 'text-xs py-1'} border-b border-white/5`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex gap-2 text-xs py-1 border-b border-white/5 hover:bg-white/5"
     >
-      <span className="text-gray-500 font-mono min-w-[60px]">{log.time}</span>
+      <span className="text-gray-600 font-mono min-w-[60px]">{log.time}</span>
       <span className={isUser ? 'text-retro-yellow' : 'text-retro-green'}>
         {isUser ? '↦' : '↤'}
       </span>
-      <span className={`text-gray-300 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'} flex-1`}>{log.text}</span>
+      <span className="text-gray-300 break-all">{log.text}</span>
     </motion.div>
   )
 }
@@ -518,7 +518,7 @@ function LogModal({ agent, logs, onClose }) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         ref={modalRef}
-        className="bg-black border-2 rounded-xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col"
+        className="bg-black border-2 rounded-xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col"
         style={{ borderColor: agent.glowColor }}
         onClick={e => e.stopPropagation()}
       >
@@ -540,11 +540,11 @@ function LogModal({ agent, logs, onClose }) {
         </div>
         
         {/* Modal Content */}
-        <div className="flex-1 overflow-y-auto p-4 bg-black/50">
-          <div className="font-mono text-xs">
+        <div className="flex-1 overflow-y-auto p-4 bg-black/50 custom-scrollbar">
+          <div className="font-mono text-sm">
             <AnimatePresence>
               {logs.map((log, i) => (
-                <LogEntry key={i} log={log} color={agent.glowColor} expanded={true} />
+                <LogEntry key={i} log={log} color={agent.glowColor} />
               ))}
             </AnimatePresence>
           </div>
@@ -559,20 +559,12 @@ function LogModal({ agent, logs, onClose }) {
   )
 }
 
-// Agent Detail with Terminal Logs
+// Agent Detail with Terminal Logs - manual scroll + expand
 function AgentDetail({ agent, agentData }) {
   const data = agentData?.[agent.id] || {}
   const logs = data.logs || []
   const [expanded, setExpanded] = useState(false)
   
-  const statusColors = {
-    'running': 'text-retro-green animate-pulse',
-    'active': 'text-retro-cyan', 
-    'idle': 'text-gray-500',
-    'offline': 'text-retro-red',
-    'error': 'text-retro-red'
-  }
-
   return (
     <>
       <motion.div
@@ -614,12 +606,12 @@ function AgentDetail({ agent, agentData }) {
           </div>
         </div>
 
-        {/* Terminal Logs */}
+        {/* Terminal Logs - manual scroll */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Terminal size={14} className="text-retro-green" />
-              <span className="text-xs text-gray-500 font-mono">TERMINAL LOG</span>
+              <span className="text-xs text-gray-500 font-mono">LIVE LOGS</span>
               <span className="text-xs text-gray-600">({logs.length})</span>
             </div>
             {logs.length > 0 && (
@@ -633,9 +625,9 @@ function AgentDetail({ agent, agentData }) {
             )}
           </div>
           
-          <div className="bg-black/80 rounded-lg border border-white/10 p-3 h-48 overflow-y-auto font-mono text-xs custom-scrollbar">
+          <div className="bg-black/90 rounded-lg border border-white/10 p-3 h-64 overflow-y-auto font-mono text-xs custom-scrollbar">
             {logs.length === 0 ? (
-              <div className="text-gray-600 italic">No hay logs disponibles</div>
+              <div className="text-gray-600 italic">Esperando logs...</div>
             ) : (
               logs.map((log, i) => (
                 <LogEntry key={i} log={log} color={agent.glowColor} />
