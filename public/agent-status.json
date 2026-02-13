@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-13T08:49:02.172Z",
+  "generatedAt": "2026-02-13T08:52:01.887Z",
   "agents": {
     "er-hineda": {
       "id": "er-hineda",
@@ -19,9 +19,9 @@
       "emoji": "🤖",
       "color": "#8b5cf6",
       "status": "running",
-      "task": "[Telegram Samuel Hinestrosa id:512097309 +42s 2026-02-13 08:47 UTC] Mejora toda ",
-      "progress": 50,
-      "started": "8:47:02",
+      "task": "System: [2026-02-13 08:49:17 UTC] Exec failed (tide-fal, signal SIGTERM)\nSystem:",
+      "progress": 42,
+      "started": "8:50:40",
       "logs": [
         {
           "type": "user",

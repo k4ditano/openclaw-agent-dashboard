@@ -602,13 +602,6 @@ function App() {
   const [agentMessages, setAgentMessages] = useState([])
   const [talkingAgent, setTalkingAgent] = useState(null)
 
-  // Cargar comunicaciones reales cuando estén disponibles
-  useEffect(() => {
-    if (communications && communications.length > 0) {
-      setAgentMessages(communications)
-    }
-  }, [communications])
-
   useEffect(() => {
     const session = sessionStorage.getItem('agent-dashboard-session')
     if (session) setIsAuthenticated(true)
@@ -701,12 +694,6 @@ function App() {
           </div>
           
           <div className="space-y-4">
-            {/* Terminal de comunicaciones */}
-            <AgentTerminal 
-              messages={agentMessages} 
-              onAgentClick={handleAgentClickFromTerminal}
-            />
-            
             {/* Estado del sistema */}
             <div className="bg-black/60 rounded-lg border-2 border-retro-pink p-4">
               <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
