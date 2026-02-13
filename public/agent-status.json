@@ -1,109 +1,36 @@
 {
-  "generatedAt": "2026-02-13T12:11:26.033Z",
+  "generatedAt": "2026-02-13T12:13:26.960Z",
   "agents": {
     "er-hineda": {
       "id": "er-hineda",
       "name": "er Hineda",
       "emoji": "🧉",
       "color": "#ec4899",
-      "folder": "coder",
-      "sessionKey": "main",
-      "desc": "Sesión principal",
-      "status": "active",
-      "task": "A background task \"Ejecuta: curl -s -o /dev/null -w \"%{http_code}\" https://google.com && echo \" - Go",
-      "progress": 100,
-      "started": "12:11:20",
-      "logs": [
-        {
-          "type": "toolResult",
-          "text": "\"id\": \"er-hineda\",\n      \"status\": \"active\",\n      \"task\": \"A background task \\\"Ejecuta: curl -s -o ",
-          "time": "12:11:20"
-        },
-        {
-          "type": "toolResult",
-          "text": "✅ Multi-agente actualizado",
-          "time": "12:11:16"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully wrote 5874 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashb",
-          "time": "12:11:08"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"count\": 4,\n  \"sessions\": [\n    {\n      \"key\": \"agent:coder:main\",\n      \"kind\": \"other\",\n      ",
-          "time": "12:10:12"
-        },
-        {
-          "type": "toolResult",
-          "text": "total 6712\n-rw-rw-r-- 1 ubuntu ubuntu 1513027 Feb 13 12:10 3dbdac8c-9e6b-4063-9660-db7c1d08fadd.json",
-          "time": "12:10:08"
-        },
-        {
-          "type": "user",
-          "text": "Pero er Hineda y er codi comparten logs, recuerda que el er codi tmb es otro subagente",
-          "time": "12:09:57"
-        },
-        {
-          "type": "toolResult",
-          "text": "\"name\": \"er Hineda\",\n      \"status\": \"active\",\n      \"task\": \"A background task \\\"Ejecuta: curl -s -",
-          "time": "12:08:56"
-        },
-        {
-          "type": "toolResult",
-          "text": "ubuntu    136866  0.0  0.8 1052324 68920 ?       Ssl  Feb11   0:01 /usr/bin/node server.js\nubuntu   ",
-          "time": "12:08:46"
-        },
-        {
-          "type": "user",
-          "text": "Yo los Live logs de la app no veo las cosas actualizandose",
-          "time": "12:08:41"
-        },
-        {
-          "type": "user",
-          "text": "---\nQueued #1\nA background task \"Dime qué archivos hay en /home/ubuntu/.openclaw/workspace/agents-da",
-          "time": "12:08:10"
-        },
-        {
-          "type": "user",
-          "text": "A background task \"Ejecuta: curl -s -o /dev/null -w \"%{http_code}\" https://google.com && echo \" - Go",
-          "time": "12:07:57"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:pr-reviewer:subagent:a4f635d4-3045-45be-a836-7",
-          "time": "12:07:52"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:netops:subagent:158facc5-aaa3-41cf-8720-8309c4",
-          "time": "12:07:47"
-        },
-        {
-          "type": "toolResult",
-          "text": "\"name\": \"er Hineda\",\n      \"status\": \"active\",\n      \"name\": \"er Codi\",\n      \"status\": \"active\",\n  ",
-          "time": "10:35:27"
-        },
-        {
-          "type": "toolResult",
-          "text": "ubuntu    225906  0.0  0.0   8120  3844 ?        Ss   10:35   0:00 /bin/bash -c ps aux | grep monito",
-          "time": "10:35:16"
-        }
-      ]
+      "folder": "main",
+      "desc": "Orquestador principal",
+      "status": "idle",
+      "task": "Esperando órdenes...",
+      "progress": 0,
+      "started": null,
+      "logs": []
     },
     "er-coder": {
       "id": "er-coder",
-      "name": "er Codi",
+      "name": "er Coder",
       "emoji": "🤖",
       "color": "#8b5cf6",
       "folder": "coder",
-      "sessionKey": "subagent",
-      "desc": "Subagente de código",
+      "desc": "Especialista en código",
       "status": "active",
-      "task": "Irene Jorquera (8046871578): Hineda, yo confie en ti 😔",
+      "task": "Irene Jorquera (8046871578): Graciaasss ^^",
       "progress": 100,
-      "started": "12:07:03",
+      "started": "12:13:17",
       "logs": [
+        {
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Oye, tampoco te pases, el tonto es el porque esta bien dicho en plural ",
+          "time": "12:13:17"
+        },
         {
           "type": "user",
           "text": "Samuel Hinestrosa (512097309): Yo no voy a ningun lao, esa es Irene, que es tonta",
@@ -173,11 +100,6 @@
           "type": "user",
           "text": "Irene Jorquera (8046871578): Gracias ^^",
           "time": "7:26:12"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"id\": \"c696cee6-c73f-4c80-ba08-8447e33aad0b\",\n  \"agentId\": \"coder\",\n  \"name\": \"Recordatorio sali",
-          "time": "7:25:06"
         }
       ]
     },
@@ -187,8 +109,7 @@
       "emoji": "🌐",
       "color": "#06b6d4",
       "folder": "netops",
-      "sessionKey": "main",
-      "desc": "Servidor y red",
+      "desc": "Especialista en redes",
       "status": "active",
       "task": "Ejecuta: curl -s -o /dev/null -w \"%{http_code}\" https://google.com && echo \" - Google respondiendo\" ",
       "progress": 100,
@@ -212,8 +133,7 @@
       "emoji": "🔍",
       "color": "#22c55e",
       "folder": "pr-reviewer",
-      "sessionKey": "main",
-      "desc": "Revisor de código",
+      "desc": "Revisor de PRs",
       "status": "active",
       "task": "Dime qué archivos hay en /home/ubuntu/.openclaw/workspace/agents-dashboard/src/",
       "progress": 100,
