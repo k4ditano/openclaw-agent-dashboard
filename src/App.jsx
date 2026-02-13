@@ -228,7 +228,40 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-function AgentCard({ agent, isSelected, onClick }) {
+// Hook para cargar métricas reales
+function useRealMetrics() {
+  const [metrics, setMetrics] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function fetchMetrics() {
+      try {
+        const res = await fetch('/metrics.json')
+        if (!res.ok) throw new Error('Failed to fetch')
+        const data = await res.json()
+        setMetrics(data)
+      } catch (e) {
+        console.warn('Using fallback metrics:', e.message)
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMetrics()
+    const interval = setInterval(fetchMetrics, 30000) // Refresh cada 30s
+    return () => clearInterval(interval)
+  }, [])
+
+  return { metrics, loading, error }
+}
+
+function AgentCard({ agent, isSelected, onClick, metrics }) {
+  // Obtener métricas reales del agente si están disponibles
+  const agentMetrics = metrics?.agents?.[agent.id]
+  const realSessions = agentMetrics?.sessions || 0
+  const realTokens = agentMetrics?.tokens || 0
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -257,8 +290,18 @@ function AgentCard({ agent, isSelected, onClick }) {
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-xl font-bold ${agent.color}`}>{agent.stats.active}</div>
-          <div className="text-xs text-gray-500">TAREAS</div>
+          {metrics ? (
+            <>
+              <div className={`text-xl font-bold ${agent.color}`}>{realSessions}</div>
+              <div className="text-xs text-gray-400">SESIONES</div>
+              <div className="text-xs text-gray-600">{realTokens.toLocaleString()} tokens</div>
+            </>
+          ) : (
+            <>
+              <div className={`text-xl font-bold ${agent.color}`}>{agent.stats.active}</div>
+              <div className="text-xs text-gray-500">TAREAS</div>
+            </>
+          )}
         </div>
       </div>
     </motion.div>
@@ -365,6 +408,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
+  const { metrics, loading: metricsLoading } = useRealMetrics()
 
   useEffect(() => {
     const session = sessionStorage.getItem('agent-dashboard-session')
@@ -412,7 +456,13 @@ function App() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {agents.map(agent => (
-            <AgentCard key={agent.id} agent={agent} isSelected={selectedAgent.id === agent.id} onClick={() => setSelectedAgent(agent)} />
+            <AgentCard 
+              key={agent.id} 
+              agent={agent} 
+              isSelected={selectedAgent.id === agent.id} 
+              onClick={() => setSelectedAgent(agent)}
+              metrics={metrics}
+            />
           ))}
         </div>
 
@@ -424,24 +474,43 @@ function App() {
               <Activity size={16} />
               ESTADO DEL SISTEMA
             </h3>
-            {[
-              { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
-              { label: 'Telegram', value: 'CONECTADO', color: 'text-retro-green' },
-              { label: 'Skills', value: '14/56', color: 'text-retro-yellow' },
-              { label: 'Memoria', value: 'ACTIVA', color: 'text-retro-cyan' },
-            ].map(item => (
-              <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                <span className="text-gray-500 text-sm">{item.label}</span>
-                <span className={`font-mono ${item.color}`}>{item.value}</span>
-              </div>
-            ))}
+            {metrics ? (
+              <>
+                {[
+                  { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
+                  { label: 'Sesiones Activas', value: metrics.sessions.total, color: 'text-retro-cyan' },
+                  { label: 'Tokens Totales', value: metrics.sessions.totalTokens.toLocaleString(), color: 'text-retro-yellow' },
+                  { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
+                  { label: 'Última Actualización', value: new Date(metrics.generatedAt).toLocaleTimeString(), color: 'text-gray-400' },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
+                    <span className="text-gray-500 text-sm">{item.label}</span>
+                    <span className={`font-mono ${item.color}`}>{item.value}</span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {[
+                  { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
+                  { label: 'Telegram', value: 'CONECTADO', color: 'text-retro-green' },
+                  { label: 'Skills', value: '14/56', color: 'text-retro-yellow' },
+                  { label: 'Memoria', value: 'ACTIVA', color: 'text-retro-cyan' },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
+                    <span className="text-gray-500 text-sm">{item.label}</span>
+                    <span className={`font-mono ${item.color}`}>{item.value}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </main>
 
       <footer className="border-t border-white/10 py-4 mt-8">
         <div className="text-center text-gray-600 text-xs">
-          SIN APIs EXTERNAS • SOLO VISUAL • MODO SEGURO
+          🔒 MODO SEGURO • SOLO MÉTRICAS • API READ-ONLY
         </div>
       </footer>
     </div>
