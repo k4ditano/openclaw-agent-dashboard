@@ -1,127 +1,155 @@
 {
-  "generatedAt": "2026-02-13T09:41:06.181Z",
+  "generatedAt": "2026-02-13T12:13:26.960Z",
   "agents": {
     "er-hineda": {
       "id": "er-hineda",
       "name": "er Hineda",
       "emoji": "🧉",
       "color": "#ec4899",
-      "dir": "coder",
+      "folder": "main",
+      "desc": "Orquestador principal",
+      "status": "idle",
+      "task": "Esperando órdenes...",
+      "progress": 0,
+      "started": null,
+      "logs": []
+    },
+    "er-coder": {
+      "id": "er-coder",
+      "name": "er Coder",
+      "emoji": "🤖",
+      "color": "#8b5cf6",
+      "folder": "coder",
+      "desc": "Especialista en código",
       "status": "active",
-      "task": "Busca una skill para generar Readme anda, porque le falta color, iconos , TODO! en condiciones",
+      "task": "Irene Jorquera (8046871578): Graciaasss ^^",
       "progress": 100,
-      "started": "9:40:59",
+      "started": "12:13:17",
       "logs": [
         {
-          "type": "toolResult",
-          "text": "\"er-hineda\": {\n      \"id\": \"er-hineda\",\n      \"name\": \"er Hineda\",\n      \"emoji\": \"🧉\",\n      \"color",
-          "time": "9:40:59"
-        },
-        {
-          "type": "toolResult",
-          "text": "✅ Logs actualizados",
-          "time": "9:40:53"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully replaced text in /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashboar",
-          "time": "9:40:46"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully replaced text in /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashboar",
-          "time": "9:40:38"
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Oye, tampoco te pases, el tonto es el porque esta bien dicho en plural ",
+          "time": "12:13:17"
         },
         {
           "type": "user",
-          "text": "Vale, er codi, cual usa? Porque ese mamon tiene los mimos logs que tu",
-          "time": "9:40:22"
+          "text": "Samuel Hinestrosa (512097309): Yo no voy a ningun lao, esa es Irene, que es tonta",
+          "time": "12:07:03"
+        },
+        {
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Xdd pos menos mal que mire la hora y mis compañeras tambien lo miran xd",
+          "time": "12:06:16"
+        },
+        {
+          "type": "user",
+          "text": "Samuel Hinestrosa (512097309): Recuerda que estamos en españa y somos españoles!",
+          "time": "12:06:00"
+        },
+        {
+          "type": "user",
+          "text": "Samuel Hinestrosa (512097309): te iba avisar a las2",
+          "time": "12:05:31"
+        },
+        {
+          "type": "user",
+          "text": "Samuel Hinestrosa (512097309): aaaa Ireneee jajsadjasdadjs",
+          "time": "12:05:20"
+        },
+        {
+          "type": "user",
+          "text": "Samuel Hinestrosa (512097309): Puede ser que no se lo recordaras porque te tuviste que reiniciar? O ",
+          "time": "12:04:54"
+        },
+        {
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Graciaasss ^^",
+          "time": "12:04:24"
         },
         {
           "type": "toolResult",
-          "text": "fix: er-hineda now shows coder logs\n 3 files changed, 134 insertions(+), 50 deletions(-)\nTo https://",
-          "time": "9:39:13"
+          "text": "{\n  \"ok\": true,\n  \"removed\": true\n}",
+          "time": "12:03:31"
+        },
+        {
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Mañana pa que xd, mañana es finde, no voy a las prac",
+          "time": "12:03:22"
+        },
+        {
+          "type": "user",
+          "text": "Samuel Hinestrosa (512097309): JASJAJAJA",
+          "time": "12:02:33"
         },
         {
           "type": "toolResult",
-          "text": "\"er-hineda\": {\n      \"id\": \"er-hineda\",\n      \"name\": \"er Hineda\",\n      \"emoji\": \"🧉\",\n      \"color",
-          "time": "9:38:56"
+          "text": "{\n  \"id\": \"c79f0702-d641-43c8-b7fb-76994552f928\",\n  \"agentId\": \"coder\",\n  \"name\": \"Recordatorio sali",
+          "time": "12:02:26"
         },
         {
           "type": "toolResult",
-          "text": "✅ Logs actualizados",
-          "time": "9:38:48"
+          "text": "{\n  \"status\": \"error\",\n  \"tool\": \"cron\",\n  \"error\": \"schedule.at is in the past: 2026-02-13T12:00:00",
+          "time": "12:02:19"
         },
         {
-          "type": "toolResult",
-          "text": "} catch {}\n  }\n  \n  if (!currentTask && logs.some(l => l.type === 'user')) {\n    const lastUser = lo",
-          "time": "9:38:41"
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Hineda, yo confie en ti 😔",
+          "time": "12:01:52"
         },
         {
-          "type": "toolResult",
-          "text": "Successfully replaced text in /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashboar",
-          "time": "9:38:34"
-        },
-        {
-          "type": "toolResult",
-          "text": "try {\n    files = readdirSync(dir).filter(f => f.endsWith('.jsonl'))\n  } catch {\n    return { ...age",
-          "time": "9:38:18"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully replaced text in /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashboar",
-          "time": "9:38:12"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"generatedAt\": \"2026-02-13T09:38:01.477Z\",\n  \"agents\": {\n    \"coder\": {\n      \"id\": \"coder\",\n   ",
-          "time": "9:38:02"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"status\": \"error\",\n  \"tool\": \"exec\",\n  \"error\": \"Command exited with code 1\"\n}",
-          "time": "9:37:57"
-        },
-        {
-          "type": "toolResult",
-          "text": "✅ Logs actualizados",
-          "time": "9:37:51"
+          "type": "user",
+          "text": "Irene Jorquera (8046871578): Gracias ^^",
+          "time": "7:26:12"
         }
-      ],
-      "lastActivity": "2026-02-13T09:29:36.038Z"
+      ]
     },
-    "coder": {
-      "id": "coder",
-      "name": "er Codi",
-      "emoji": "🤖",
-      "color": "#8b5cf6",
-      "dir": "none",
-      "status": "offline",
-      "task": "Sin sesiones propias",
-      "progress": 0,
-      "logs": []
-    },
-    "netops": {
-      "id": "netops",
+    "er-serve": {
+      "id": "er-serve",
       "name": "er Serve",
       "emoji": "🌐",
       "color": "#06b6d4",
-      "dir": "netops",
-      "status": "offline",
-      "task": "Sin actividad",
-      "progress": 0,
-      "logs": []
+      "folder": "netops",
+      "desc": "Especialista en redes",
+      "status": "active",
+      "task": "Ejecuta: curl -s -o /dev/null -w \"%{http_code}\" https://google.com && echo \" - Google respondiendo\" ",
+      "progress": 100,
+      "started": "12:07:53",
+      "logs": [
+        {
+          "type": "toolResult",
+          "text": "301 - Google respondiendo\n200 - GitHub respondiendo",
+          "time": "12:07:53"
+        },
+        {
+          "type": "user",
+          "text": "Ejecuta: curl -s -o /dev/null -w \"%{http_code}\" https://google.com && echo \" - Google respondiendo\" ",
+          "time": "12:07:47"
+        }
+      ]
     },
-    "pr-reviewer": {
-      "id": "pr-reviewer",
+    "er-pr": {
+      "id": "er-pr",
       "name": "er PR",
       "emoji": "🔍",
       "color": "#22c55e",
-      "dir": "pr-reviewer",
-      "status": "offline",
-      "task": "Sin carpeta",
-      "progress": 0,
-      "logs": []
+      "folder": "pr-reviewer",
+      "desc": "Revisor de PRs",
+      "status": "active",
+      "task": "Dime qué archivos hay en /home/ubuntu/.openclaw/workspace/agents-dashboard/src/",
+      "progress": 100,
+      "started": "12:07:56",
+      "logs": [
+        {
+          "type": "toolResult",
+          "text": "total 48\ndrwxrwxr-x 3 ubuntu ubuntu  4096 Feb 13 09:46 .\ndrwxrwxr-x 9 ubuntu ubuntu  4096 Feb 13 10:",
+          "time": "12:07:56"
+        },
+        {
+          "type": "user",
+          "text": "Dime qué archivos hay en /home/ubuntu/.openclaw/workspace/agents-dashboard/src/",
+          "time": "12:07:52"
+        }
+      ]
     }
   }
 }
