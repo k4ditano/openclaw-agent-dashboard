@@ -1,91 +1,92 @@
 {
-  "generatedAt": "2026-02-13T10:13:36.525Z",
+  "generatedAt": "2026-02-13T10:33:57.407Z",
   "agents": {
     "er-hineda": {
       "id": "er-hineda",
       "name": "er Hineda",
       "emoji": "🧉",
       "color": "#ec4899",
+      "folder": "coder",
       "desc": "Sesión principal",
       "status": "active",
-      "task": "Pre-compaction memory flush. Store durable memories now (use memory/YYYY-MM-DD.md; create memory/ if",
+      "task": "GatewayRestart:\n{\n  \"kind\": \"restart\",\n  \"status\": \"ok\",\n  \"ts\": 1770978100125,\n  \"sessionKey\": \"age",
       "progress": 100,
-      "started": "10:13:32",
+      "started": "10:33:48",
       "logs": [
         {
           "type": "toolResult",
-          "text": "Successfully wrote 4787 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashb",
-          "time": "10:13:32"
+          "text": "Successfully wrote 4637 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashb",
+          "time": "10:33:48"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 8\n-rw------- 1 ubuntu ubuntu 1865 Feb 13 10:33 sessions.json\n-rw-rw-r-- 1 ubuntu ubuntu 1747 F",
+          "time": "10:33:19"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 516\n-rw------- 1 ubuntu ubuntu  15456 Feb 13 10:32 sessions.json\n-rw-rw-r-- 1 ubuntu ubuntu   ",
+          "time": "10:33:16"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"count\": 6,\n  \"sessions\": [\n    {\n      \"key\": \"agent:coder:main\",\n      \"kind\": \"other\",\n      ",
+          "time": "10:33:09"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 524\ndrwxrwxr-x 2 ubuntu ubuntu   4096 Feb 13 10:32 .\ndrwxrwxr-x 4 ubuntu ubuntu   4096 Feb  9 ",
+          "time": "10:33:06"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:pr-reviewer:subagent:81e7d1cc-9008-49c5-bd82-8",
+          "time": "10:32:59"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:netops:subagent:42d24daa-dba1-4c8a-9e15-78f5c0",
+          "time": "10:32:54"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"requester\": \"coder\",\n  \"allowAny\": false,\n  \"agents\": [\n    {\n      \"id\": \"coder\",\n      \"confi",
+          "time": "10:32:37"
         },
         {
           "type": "user",
-          "text": "Peor me gustaria que esos subagent fueran los que tienen nombre sabes? No nombre: bdd14122 Sino por ",
-          "time": "10:13:00"
+          "text": "GatewayRestart:\n{\n  \"kind\": \"restart\",\n  \"status\": \"ok\",\n  \"ts\": 1770978100125,\n  \"sessionKey\": \"age",
+          "time": "10:32:29"
         },
         {
           "type": "toolResult",
-          "text": "{\n  \"count\": 5,\n  \"sessions\": [\n    {\n      \"key\": \"agent:coder:main\",\n      \"kind\": \"other\",\n      ",
-          "time": "10:07:09"
-        },
-        {
-          "type": "toolResult",
-          "text": "-rw-rw-r-- 1 ubuntu ubuntu   21684 Feb 13 08:20 /home/ubuntu/.openclaw/agents/coder/sessions/12a8bb5",
-          "time": "10:07:06"
-        },
-        {
-          "type": "toolResult",
-          "text": "childSessionKey\\\": \\\"agent:coder:subagent:079fc943-cac9-4936-8b94-e22527d7221f\\\"\nchildSessionKey\":\"a",
-          "time": "10:07:01"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\"type\":\"message\",\"id\":\"58ea464c\",\"parentId\":\"57fe860d\",\"timestamp\":\"2026-02-13T09:54:40.699Z\",\"mess",
-          "time": "10:06:57"
-        },
-        {
-          "type": "toolResult",
-          "text": "subagent\nsubagent\nsubagent",
-          "time": "10:06:54"
-        },
-        {
-          "type": "toolResult",
-          "text": "---\nsummary: \"Multi-agent routing: isolated agents, channel accounts, and bindings\"\ntitle: Multi-Age",
-          "time": "10:06:49"
-        },
-        {
-          "type": "toolResult",
-          "text": "agent-loop.md\nagent-workspace.md\nagent.md\narchitecture.md\nchannel-routing.md\ncompaction.md\ncontext.m",
-          "time": "10:06:45"
-        },
-        {
-          "type": "toolResult",
-          "text": "CNAME\nassets\nautomation\nbedrock.md\nbrave-search.md\nbroadcast-groups.md\nchannels\ncli\nconcepts\ndate-ti",
-          "time": "10:06:42"
+          "text": "{\n  \"ok\": true,\n  \"pid\": 201782,\n  \"signal\": \"SIGUSR1\",\n  \"delayMs\": 2000,\n  \"reason\": \"Enable subag",
+          "time": "10:21:40"
         },
         {
           "type": "toolResult",
           "text": "(no output)",
-          "time": "10:06:39"
+          "time": "10:21:36"
         },
         {
           "type": "toolResult",
-          "text": "(no output)",
-          "time": "10:06:35"
+          "text": "{\n  \"id\": \"coder\",\n  \"model\": \"minimax/MiniMax-M2.5\"\n}\n{\n  \"id\": \"netops\",\n  \"model\": \"minimax/MiniM",
+          "time": "10:21:31"
         },
         {
           "type": "toolResult",
-          "text": "agent:coder:subagent:fd96d232-94c1-491f-b257-4a2612a0f0d0\nno file\n---\nagent:coder:subagent:bdd14122-",
-          "time": "10:06:31"
+          "text": "\"workspace\": \"/home/ubuntu/.openclaw/workspace\",\n      \"compaction\": {\n        \"mode\": \"safeguard\"\n ",
+          "time": "10:21:25"
         },
         {
           "type": "toolResult",
-          "text": "{\n  \"status\": \"error\",\n  \"tool\": \"exec\",\n  \"error\": \"Command exited with code 1\"\n}",
-          "time": "10:06:27"
+          "text": "\"agents\": {\n    \"defaults\": {\n      \"model\": {\n        \"primary\": \"minimax/MiniMax-M2.5\",\n        \"f",
+          "time": "10:21:22"
         },
         {
           "type": "toolResult",
-          "text": "agent:coder:subagent:fd96d232-94c1-491f-b257-4a2612a0f0d0\nagent:coder:subagent:bdd14122-7ffb-4f33-ac",
-          "time": "10:06:23"
+          "text": "{\n  \"meta\": {\n    \"lastTouchedVersion\": \"2026.2.6-3\",\n    \"lastTouchedAt\": \"2026-02-12T23:50:19.708Z",
+          "time": "10:21:18"
         }
       ]
     },
@@ -94,86 +95,87 @@
       "name": "er Codi",
       "emoji": "🤖",
       "color": "#8b5cf6",
+      "folder": "coder",
       "desc": "Constructor de código",
       "status": "active",
-      "task": "Analiza el proyecto en /home/ubuntu/.openclaw/workspace/agents-dashboard y propon 3 mejoras. Crea un",
+      "task": "GatewayRestart:\n{\n  \"kind\": \"restart\",\n  \"status\": \"ok\",\n  \"ts\": 1770978100125,\n  \"sessionKey\": \"age",
       "progress": 100,
-      "started": "9:46:54",
+      "started": "10:33:48",
       "logs": [
         {
+          "type": "toolResult",
+          "text": "Successfully wrote 4637 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/skill/agent-dashb",
+          "time": "10:33:48"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 8\n-rw------- 1 ubuntu ubuntu 1865 Feb 13 10:33 sessions.json\n-rw-rw-r-- 1 ubuntu ubuntu 1747 F",
+          "time": "10:33:19"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 516\n-rw------- 1 ubuntu ubuntu  15456 Feb 13 10:32 sessions.json\n-rw-rw-r-- 1 ubuntu ubuntu   ",
+          "time": "10:33:16"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"count\": 6,\n  \"sessions\": [\n    {\n      \"key\": \"agent:coder:main\",\n      \"kind\": \"other\",\n      ",
+          "time": "10:33:09"
+        },
+        {
+          "type": "toolResult",
+          "text": "total 524\ndrwxrwxr-x 2 ubuntu ubuntu   4096 Feb 13 10:32 .\ndrwxrwxr-x 4 ubuntu ubuntu   4096 Feb  9 ",
+          "time": "10:33:06"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:pr-reviewer:subagent:81e7d1cc-9008-49c5-bd82-8",
+          "time": "10:32:59"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"status\": \"accepted\",\n  \"childSessionKey\": \"agent:netops:subagent:42d24daa-dba1-4c8a-9e15-78f5c0",
+          "time": "10:32:54"
+        },
+        {
+          "type": "toolResult",
+          "text": "{\n  \"requester\": \"coder\",\n  \"allowAny\": false,\n  \"agents\": [\n    {\n      \"id\": \"coder\",\n      \"confi",
+          "time": "10:32:37"
+        },
+        {
           "type": "user",
-          "text": "Analiza el proyecto en /home/ubuntu/.openclaw/workspace/agents-dashboard y propon 3 mejoras. Crea un",
-          "time": "9:46:54"
+          "text": "GatewayRestart:\n{\n  \"kind\": \"restart\",\n  \"status\": \"ok\",\n  \"ts\": 1770978100125,\n  \"sessionKey\": \"age",
+          "time": "10:32:29"
         },
         {
           "type": "toolResult",
-          "text": "Successfully replaced text in /home/ubuntu/.openclaw/workspace/agents-dashboard/package.json.",
-          "time": "9:46:54"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"name\": \"agents-dashboard\",\n  \"private\": true,\n  \"version\": \"0.0.0\",\n  \"type\": \"module\",\n  \"scri",
-          "time": "9:46:51"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"status\": \"error\",\n  \"tool\": \"edit\",\n  \"error\": \"Could not find the exact text in /home/ubuntu/.",
-          "time": "9:46:48"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully wrote 2006 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/src/test/App.test",
-          "time": "9:46:42"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully wrote 285 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/src/test/setup.js",
-          "time": "9:46:29"
+          "text": "{\n  \"ok\": true,\n  \"pid\": 201782,\n  \"signal\": \"SIGUSR1\",\n  \"delayMs\": 2000,\n  \"reason\": \"Enable subag",
+          "time": "10:21:40"
         },
         {
           "type": "toolResult",
           "text": "(no output)",
-          "time": "9:46:23"
+          "time": "10:21:36"
         },
         {
           "type": "toolResult",
-          "text": "Successfully wrote 289 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/vitest.config.js",
-          "time": "9:46:21"
+          "text": "{\n  \"id\": \"coder\",\n  \"model\": \"minimax/MiniMax-M2.5\"\n}\n{\n  \"id\": \"netops\",\n  \"model\": \"minimax/MiniM",
+          "time": "10:21:31"
         },
         {
           "type": "toolResult",
-          "text": "Switched to a new branch 'feature/test-agent-chain'",
-          "time": "9:46:17"
+          "text": "\"workspace\": \"/home/ubuntu/.openclaw/workspace\",\n      \"compaction\": {\n        \"mode\": \"safeguard\"\n ",
+          "time": "10:21:25"
         },
         {
           "type": "toolResult",
-          "text": "On branch master\nYour branch is up to date with 'origin/master'.\n\nChanges not staged for commit:\n  (",
-          "time": "9:46:14"
+          "text": "\"agents\": {\n    \"defaults\": {\n      \"model\": {\n        \"primary\": \"minimax/MiniMax-M2.5\",\n        \"f",
+          "time": "10:21:22"
         },
         {
           "type": "toolResult",
-          "text": "/**\n * AGENT METRICS API - Solo métricas de solo lectura\n * \n * Endpoints seguros:\n * - GET /api/met",
-          "time": "9:46:07"
-        },
-        {
-          "type": "toolResult",
-          "text": "import { useState, useEffect, useRef } from 'react'\nimport { motion, AnimatePresence } from 'framer-",
-          "time": "9:46:07"
-        },
-        {
-          "type": "toolResult",
-          "text": "src/main.jsx\nsrc/index.css\nsrc/App.jsx",
-          "time": "9:46:04"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"name\": \"agents-dashboard\",\n  \"private\": true,\n  \"version\": \"0.0.0\",\n  \"type\": \"module\",\n  \"scri",
-          "time": "9:46:01"
-        },
-        {
-          "type": "toolResult",
-          "text": "(no output)",
-          "time": "9:46:01"
+          "text": "{\n  \"meta\": {\n    \"lastTouchedVersion\": \"2026.2.6-3\",\n    \"lastTouchedAt\": \"2026-02-12T23:50:19.708Z",
+          "time": "10:21:18"
         }
       ]
     },
@@ -182,26 +184,17 @@
       "name": "er Serve",
       "emoji": "🌐",
       "color": "#06b6d4",
+      "folder": "netops",
       "desc": "Servidor y red",
       "status": "active",
-      "task": "Mejora el README.md del proyecto agents-dashboard located at /home/ubuntu/.openclaw/workspace/agents",
+      "task": "Responde solo con: \"Hola, soy er Serve. Estoy monitoreando redes y servidores.\"",
       "progress": 100,
-      "started": "9:30:20",
+      "started": "10:32:54",
       "logs": [
         {
-          "type": "toolResult",
-          "text": "Successfully wrote 5211 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/README.md",
-          "time": "9:30:20"
-        },
-        {
-          "type": "toolResult",
-          "text": "# Agent Dashboard - Documentación\n\nDashboard en tiempo real para monitorizar agentes de OpenClaw.\n\n#",
-          "time": "9:29:41"
-        },
-        {
           "type": "user",
-          "text": "Mejora el README.md del proyecto agents-dashboard located at /home/ubuntu/.openclaw/workspace/agents",
-          "time": "9:29:36"
+          "text": "Responde solo con: \"Hola, soy er Serve. Estoy monitoreando redes y servidores.\"",
+          "time": "10:32:54"
         }
       ]
     },
@@ -210,41 +203,17 @@
       "name": "er PR",
       "emoji": "🔍",
       "color": "#22c55e",
+      "folder": "pr-reviewer",
       "desc": "Revisor de código",
       "status": "active",
-      "task": "Tarea: Actualiza los archivos de métricas del dashboard.\n\n1. Llama a sessions_list con limit=20 y me",
+      "task": "Responde solo con: \"Hola, soy er PR. Estoy listo para analizar Pull Requests.\"",
       "progress": 100,
-      "started": "8:28:28",
+      "started": "10:32:59",
       "logs": [
         {
-          "type": "toolResult",
-          "text": "Successfully wrote 451 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/public/communicati",
-          "time": "8:28:28"
-        },
-        {
-          "type": "toolResult",
-          "text": "Successfully wrote 322 bytes to /home/ubuntu/.openclaw/workspace/agents-dashboard/public/metrics.jso",
-          "time": "8:28:28"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"sessionKey\": \"agent:coder:telegram:group:-1003774682509\",\n  \"messages\": [\n    {\n      \"role\": \"",
-          "time": "8:28:11"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"sessionKey\": \"agent:coder:main\",\n  \"messages\": [\n    {\n      \"role\": \"assistant\",\n      \"conten",
-          "time": "8:28:11"
-        },
-        {
-          "type": "toolResult",
-          "text": "{\n  \"count\": 4,\n  \"sessions\": [\n    {\n      \"key\": \"agent:coder:cron:647fcf9a-3b26-46f8-8a0d-0aa6de6",
-          "time": "8:28:05"
-        },
-        {
           "type": "user",
-          "text": "Tarea: Actualiza los archivos de métricas del dashboard.\n\n1. Llama a sessions_list con limit=20 y me",
-          "time": "8:28:00"
+          "text": "Responde solo con: \"Hola, soy er PR. Estoy listo para analizar Pull Requests.\"",
+          "time": "10:32:59"
         }
       ]
     }
