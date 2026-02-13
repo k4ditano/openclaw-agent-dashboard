@@ -18,51 +18,210 @@ const CREDENTIALS = {
   passwordHash: hashPassword('qubgos-9cehpe-caggEz')
 }
 
-// Pixel art creatures as components
-const PixelCreature = ({ type, size = 80 }) => {
+// Pixel art creatures - Enhanced version with unique avatars
+const PixelCreature = ({ type, size = 80, isTalking = false }) => {
   const creatures = {
     'er-hineda': {
-      emoji: '🧉',
       color: '#ec4899',
-      desc: 'Orquestador'
+      desc: 'Orquestador',
+      // Matriz de pixels 8x8 para estilo pixel art
+      pixels: [
+        [0,0,1,1,1,1,0,0],
+        [0,1,2,2,2,2,1,0],
+        [1,2,3,2,2,3,2,1],
+        [1,2,2,2,2,2,2,1],
+        [1,2,4,2,2,4,2,1],
+        [0,1,1,1,1,1,1,0],
+        [0,1,0,0,0,0,1,0],
+        [0,1,1,0,0,1,1,0]
+      ],
+      emoji: '🧉'
     },
     'coder': {
-      emoji: '🤖',
       color: '#8b5cf6',
-      desc: 'Constructor'
+      desc: 'Constructor',
+      pixels: [
+        [0,0,1,1,1,1,0,0],
+        [0,1,2,2,2,2,1,0],
+        [1,2,2,2,2,2,2,1],
+        [1,2,3,2,2,3,2,1],
+        [1,2,2,3,3,2,2,1],
+        [1,2,2,2,2,2,2,1],
+        [0,1,1,0,0,1,1,0],
+        [1,0,0,0,0,0,0,1]
+      ],
+      emoji: '🤖'
     },
     'netops': {
-      emoji: '🌐',
       color: '#06b6d4',
-      desc: 'Servidor'
+      desc: 'Servidor',
+      pixels: [
+        [0,0,1,1,1,1,0,0],
+        [0,1,2,2,2,2,1,0],
+        [1,2,3,2,2,3,2,1],
+        [1,2,2,3,3,2,2,1],
+        [1,2,2,2,2,2,2,1],
+        [0,1,2,2,2,2,1,0],
+        [0,1,0,1,1,0,1,0],
+        [0,1,0,0,0,0,1,0]
+      ],
+      emoji: '🌐'
     },
     'pr-reviewer': {
-      emoji: '🔍',
       color: '#22c55e',
-      desc: 'Guardián'
+      desc: 'Guardián',
+      pixels: [
+        [0,0,1,1,1,1,0,0],
+        [0,1,2,2,2,2,1,0],
+        [1,2,3,2,2,3,2,1],
+        [1,2,2,2,2,2,2,1],
+        [1,2,3,2,2,3,2,1],
+        [0,1,2,2,2,2,1,0],
+        [0,1,0,2,2,0,1,0],
+        [0,1,0,1,1,0,1,0]
+      ],
+      emoji: '🔍'
     }
   }
   
   const c = creatures[type] || creatures['coder']
   
+  // Mapeo de colores para los pixels
+  const colorMap = {
+    0: 'transparent',
+    1: c.color,
+    2: `${c.color}dd`,
+    3: '#ffffff',
+    4: '#ffeb3b'
+  }
+  
   return (
-    <div className="relative" style={{ width: size, height: size }}>
-      {/* Pixel art background creature */}
+    <motion.div 
+      className="relative"
+      style={{ width: size, height: size }}
+      animate={isTalking ? { scale: [1, 1.1, 1] } : {}}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Background glow */}
       <div 
-        className="absolute inset-0 rounded-lg animate-pulse"
+        className="absolute inset-0 rounded-lg"
         style={{
-          background: `linear-gradient(135deg, ${c.color}40 0%, ${c.color}20 100%)`,
-          boxShadow: `0 0 20px ${c.color}40, inset 0 0 20px ${c.color}20`
+          background: `linear-gradient(135deg, ${c.color}30 0%, ${c.color}10 100%)`,
+          boxShadow: `0 0 30px ${c.color}60, inset 0 0 20px ${c.color}20`
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center text-4xl">
+      
+      {/* Pixel art grid */}
+      <div 
+        className="absolute inset-2 grid"
+        style={{ 
+          gridTemplateColumns: `repeat(8, 1fr)`,
+          gridTemplateRows: `repeat(8, 1fr)`,
+        }}
+      >
+        {c.pixels.flat().map((pixel, i) => (
+          <motion.div
+            key={i}
+            className="rounded-sm"
+            style={{
+              backgroundColor: colorMap[pixel],
+              opacity: pixel === 0 ? 0 : 1
+            }}
+            animate={isTalking ? { 
+              opacity: [0.5, 1, 0.5],
+              y: [0, -2, 0]
+            } : {}}
+            transition={{ 
+              duration: 0.5, 
+              repeat: isTalking ? Infinity : 0,
+              delay: i * 0.02
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Emoji overlay */}
+      <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-60">
         {c.emoji}
       </div>
-      {/* Status dot */}
-      <div 
-        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-black animate-ping"
+      
+      {/* Status indicator */}
+      <motion.div 
+        className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border border-black"
         style={{ backgroundColor: c.color }}
+        animate={isTalking ? { scale: [1, 1.5, 1] } : {}}
+        transition={{ duration: 0.3 }}
       />
+    </motion.div>
+  )
+}
+
+// Terminal de comunicaciones entre agentes
+const AgentTerminal = ({ messages, onAgentClick }) => {
+  const [autoScroll, setAutoScroll] = useState(true)
+  
+  return (
+    <div className="bg-black/80 rounded-lg border border-white/20 overflow-hidden font-mono text-xs">
+      {/* Header */}
+      <div className="bg-white/10 px-3 py-2 flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <Terminal size={14} className="text-retro-green" />
+          <span className="text-retro-green">AGENT COMM LINK</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">● LIVE</span>
+        </div>
+      </div>
+      
+      {/* Messages */}
+      <div className="h-48 overflow-y-auto p-2 space-y-1">
+        <AnimatePresence>
+          {messages.length === 0 ? (
+            <div className="text-gray-600 italic">Esperando mensajes entre agentes...</div>
+          ) : (
+            messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-start gap-2 py-1"
+              >
+                {/* From avatar */}
+                <button onClick={() => onAgentClick(msg.from)} className="flex-shrink-0">
+                  <PixelCreature type={msg.from} size={24} />
+                </button>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-retro-cyan font-bold">{msg.from.toUpperCase()}</span>
+                    <span className="text-gray-600">→</span>
+                    <span className="text-retro-pink font-bold">{msg.to.toUpperCase()}</span>
+                    <span className="text-gray-600 text-[10px]">{msg.time}</span>
+                  </div>
+                  <div className="text-gray-300 truncate">{msg.content}</div>
+                </div>
+                
+                {/* Arrow animation */}
+                <motion.span
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="text-retro-green"
+                >
+                  ▸
+                </motion.span>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+      
+      {/* Input模拟 */}
+      <div className="bg-white/5 px-3 py-2 border-t border-white/10">
+        <div className="flex items-center gap-2 text-gray-500">
+          <span className="text-retro-green">$</span>
+          <span className="italic">conexión segura activa...</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -409,6 +568,15 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
   const { metrics, loading: metricsLoading } = useRealMetrics()
+  
+  // Estado para mensajes entre agentes
+  const [agentMessages, setAgentMessages] = useState([
+    { from: 'er-hineda', to: 'coder', content: 'Samuel quiere integrar métricas reales', time: '08:05:23' },
+    { from: 'coder', to: 'er-hineda', content: 'Entendido. Generando endpoint seguro...', time: '08:05:24' },
+    { from: 'er-hineda', to: 'pr-reviewer', content: 'Analiza el PR antes de mergear', time: '08:06:10' },
+    { from: 'pr-reviewer', to: 'er-hineda', content: '✅ Seguridad OK. No vulnerabilidades.', time: '08:06:15' },
+  ])
+  const [talkingAgent, setTalkingAgent] = useState(null)
 
   useEffect(() => {
     const session = sessionStorage.getItem('agent-dashboard-session')
@@ -420,6 +588,30 @@ function App() {
     return () => clearInterval(timer)
   }, [])
 
+  // Simular mensajes entre agentes periódicamente
+  useEffect(() => {
+    const messages = [
+      { from: 'er-hineda', to: 'coder', content: 'Actualizando dashboard con datos reales...' },
+      { from: 'coder', to: 'er-hineda', content: 'Build completado. Tokens: 213K' },
+      { from: 'netops', to: 'er-hineda', content: 'Servidor estable. Uptime: 99.9%' },
+      { from: 'pr-reviewer', to: 'er-hineda', content: 'Escaneando commits... sin issues' },
+      { from: 'er-hineda', to: 'netops', content: 'Revisa los certificados SSL' },
+      { from: 'coder', to: 'pr-reviewer', content: 'Nuevo PR: feature/metrics' },
+    ]
+    
+    const interval = setInterval(() => {
+      const msg = messages[Math.floor(Math.random() * messages.length)]
+      setAgentMessages(prev => [...prev.slice(-10), { 
+        ...msg, 
+        time: new Date().toLocaleTimeString('es-ES', { hour12: false }) 
+      }])
+      setTalkingAgent(msg.from)
+      setTimeout(() => setTalkingAgent(null), 1500)
+    }, 8000)
+    
+    return () => clearInterval(interval)
+  }, [])
+
   const handleLogin = () => {
     sessionStorage.setItem('agent-dashboard-session', Date.now().toString())
     setIsAuthenticated(true)
@@ -428,6 +620,11 @@ function App() {
   const handleLogout = () => {
     sessionStorage.removeItem('agent-dashboard-session')
     setIsAuthenticated(false)
+  }
+
+  const handleAgentClickFromTerminal = (agentId) => {
+    const agent = agents.find(a => a.id === agentId)
+    if (agent) setSelectedAgent(agent)
   }
 
   if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />
@@ -462,18 +659,29 @@ function App() {
               isSelected={selectedAgent.id === agent.id} 
               onClick={() => setSelectedAgent(agent)}
               metrics={metrics}
+              isTalking={talkingAgent === agent.id}
             />
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AgentDetail agent={selectedAgent} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <AgentDetail agent={selectedAgent} />
+          </div>
           
-          <div className="bg-black/60 rounded-lg border-2 border-retro-pink p-6">
-            <h3 className="text-retro-pink font-mono text-sm mb-4 flex items-center gap-2">
-              <Activity size={16} />
-              ESTADO DEL SISTEMA
-            </h3>
+          <div className="space-y-4">
+            {/* Terminal de comunicaciones */}
+            <AgentTerminal 
+              messages={agentMessages} 
+              onAgentClick={handleAgentClickFromTerminal}
+            />
+            
+            {/* Estado del sistema */}
+            <div className="bg-black/60 rounded-lg border-2 border-retro-pink p-4">
+              <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
+                <Activity size={16} />
+                ESTADO DEL SISTEMA
+              </h3>
             {metrics ? (
               <>
                 {[
@@ -504,6 +712,7 @@ function App() {
                 ))}
               </>
             )}
+          </div>
           </div>
         </div>
       </main>
