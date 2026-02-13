@@ -1,5 +1,5 @@
 /**
- * Monitor de agentes - solo mensajes útiles y recientes
+ * Monitor de agentes - solo mensajes útiles cada 15 segundos
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'fs'
@@ -15,42 +15,43 @@ const agents = {
   'pr-reviewer': { id: 'pr-reviewer', name: 'er PR', emoji: '🔍', color: '#22c55e' }
 }
 
-// Filtrar textos técnicos - solo mensajes leggibles
+// Solo mensajes útiles
 function isUsefulLog(text) {
-  // NO filtrar - mostrar todo
-  if (text.length < 5) return false
+  // Ignorar mensajes del sistema
+  if (text.includes('Command still running') || text.includes('signal SIGTERM')) return false
+  if (text.includes('Exec completed') || text.includes('Exec failed')) return false
+  if (text.includes('vite v') || text.includes('vite ready')) return false
+  if (text.includes('transforming') || text.includes('built in')) return false
+  if (text.includes('npm run')) return false
+  if (text.includes('Use process') || text.includes('sessionId')) return false
+  if (text.includes('Error:') || text.includes('Exception')) return false
+  if (text.includes('$$') || text.includes('>>') || text.includes('## ')) return false
+  if (text.length < 10) return false
   return true
 }
 
 function cleanText(text) {
-  // Quitar prefijos de Telegram
-  return text
-    .replace(/\[.*?\]\s*/g, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/`/g, '')
-    .trim()
-    .substring(0, 80)
+  return text.replace(/\[.*?\]\s*/g, '').replace(/`/g, '').trim().substring(0, 100)
 }
 
 function processAgent(dirName, agent) {
   const dir = join(AGENTS_DIR, dirName, 'sessions')
   
   if (!existsSync(dir)) {
-    return { ...agent, status: 'offline', task: 'Sin carpeta', progress: 0, logs: [], lastActivity: null }
+    return { ...agent, status: 'offline', task: 'Sin carpeta', progress: 0, logs: [] }
   }
   
   let files = []
   try {
     files = readdirSync(dir).filter(f => f.endsWith('.jsonl'))
   } catch {
-    return { ...agent, status: 'error', task: 'Sin acceso', progress: 0, logs: [], lastActivity: null }
+    return { ...agent, status: 'error', task: 'Sin acceso', progress: 0, logs: [] }
   }
   
   if (files.length === 0) {
-    return { ...agent, status: 'offline', task: 'Sin actividad', progress: 0, logs: [], lastActivity: null }
+    return { ...agent, status: 'offline', task: 'Sin actividad', progress: 0, logs: [] }
   }
   
-  // Leer los 2 archivos más recientes
   const sortedFiles = files.sort((a, b) => statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime).slice(0, 2)
   
   const allLines = []
@@ -62,7 +63,7 @@ function processAgent(dirName, agent) {
   }
   
   const now = Date.now()
-  const thirtyMinsAgo = now - 30 * 60 * 1000
+  const tenMinsAgo = now - 10 * 60 * 1000
   const today = new Date().toDateString()
   
   const logs = []
@@ -85,10 +86,7 @@ function processAgent(dirName, agent) {
       const msg = entry.message
       if (!msg?.role) continue
       
-      const rawText = Array.isArray(msg.content) 
-        ? msg.content[0]?.text 
-        : msg.content
-      
+      const rawText = Array.isArray(msg.content) ? msg.content[0]?.text : msg.content
       if (!rawText || rawText.length < 10) continue
       
       const text = cleanText(rawText)
@@ -98,8 +96,7 @@ function processAgent(dirName, agent) {
       
       logs.push({ type: msg.role, text, time })
       
-      // Solo tomar tarea de los últimos 30 minutos
-      if (msg.role === 'user' && entryTime > thirtyMinsAgo) {
+      if (msg.role === 'user' && entryTime > tenMinsAgo) {
         currentTask = text
       }
       
@@ -111,14 +108,13 @@ function processAgent(dirName, agent) {
     } catch {}
   }
   
-  // Si no hay tarea reciente, buscar la última
   if (!currentTask && logs.some(l => l.type === 'user')) {
     const lastUser = logs.filter(l => l.type === 'user').pop()
     if (lastUser) currentTask = lastUser.text
   }
   
   const status = hasToolCalls ? 'running' : (logs.length > 0 ? 'active' : 'idle')
-  const progress = hasToolCalls ? Math.min(85, 40 + Math.floor(Math.random() * 35)) : (logs.length > 0 ? 100 : 0)
+  const progress = hasToolCalls ? Math.min(80, 40 + Math.floor(Math.random() * 30)) : (logs.length > 0 ? 100 : 0)
   
   return {
     ...agent,
@@ -126,7 +122,7 @@ function processAgent(dirName, agent) {
     task: currentTask || 'Esperando órdenes...',
     progress,
     started: logs[0]?.time || null,
-    logs: logs.slice(0, 8),
+    logs: logs.slice(0, 15),
     lastActivity
   }
 }
@@ -141,4 +137,4 @@ writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
   agents: data
 }, null, 2))
 
-console.log('✅ Actualizado')
+console.log('✅ Logs actualizados')
