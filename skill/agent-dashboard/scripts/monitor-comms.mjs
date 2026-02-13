@@ -9,10 +9,10 @@ const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
 const OUTPUT_DIR = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public'
 
 const agents = {
-  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899' },
-  'coder': { id: 'coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6' },
-  'netops': { id: 'netops', name: 'er Serve', emoji: '🌐', color: '#06b6d4' },
-  'pr-reviewer': { id: 'pr-reviewer', name: 'er PR', emoji: '🔍', color: '#22c55e' }
+  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', dir: 'coder' },
+  'coder': { id: 'coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6', dir: 'coder' },
+  'netops': { id: 'netops', name: 'er Serve', emoji: '🌐', color: '#06b6d4', dir: 'netops' },
+  'pr-reviewer': { id: 'pr-reviewer', name: 'er PR', emoji: '🔍', color: '#22c55e', dir: 'pr-reviewer' }
 }
 
 // Solo mensajes útiles
@@ -35,7 +35,9 @@ function cleanText(text) {
 }
 
 function processAgent(dirName, agent) {
-  const dir = join(AGENTS_DIR, dirName, 'sessions')
+  // Usar carpeta del agente o la definida
+  const sessionDir = agent.dir || dirName
+  const dir = join(AGENTS_DIR, sessionDir, 'sessions')
   
   if (!existsSync(dir)) {
     return { ...agent, status: 'offline', task: 'Sin carpeta', progress: 0, logs: [] }
