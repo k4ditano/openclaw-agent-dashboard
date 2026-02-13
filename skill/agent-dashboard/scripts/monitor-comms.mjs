@@ -1,5 +1,5 @@
 /**
- * Monitor de agentes - muestra subagentes en tiempo real
+ * Monitor de subagentes en tiempo real
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'fs'
@@ -8,13 +8,13 @@ import { join } from 'path'
 const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
 const OUTPUT_DIR = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public'
 
-// Mapeo de agentes
-const agents = {
-  'er-hineda': { name: 'er Hineda', emoji: '🧉', color: '#ec4899', sessionIndex: 0 },
-  'er-coder': { name: 'er Codi', emoji: '🤖', color: '#8b5cf6', sessionIndex: 1 },
-  'er-serve': { name: 'er Serve', emoji: '🌐', color: '#06b6d4', sessionIndex: 2 },
-  'er-pr': { name: 'er PR', emoji: '🔍', color: '#22c55e', sessionIndex: 3 }
-}
+// Nombres legibles para subagentes
+const subAgents = [
+  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', desc: 'Sesión principal' },
+  { id: 'er-coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6', desc: 'Constructor de código' },
+  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', desc: 'Servidor y red' },
+  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', desc: 'Revisor de código' }
+]
 
 function isUsefulLog(text) {
   if (text.includes('Command still running') || text.includes('signal SIGTERM')) return false
@@ -33,40 +33,13 @@ function cleanText(text) {
   return text.replace(/\[.*?\]\s*/g, '').replace(/`/g, '').trim().substring(0, 100)
 }
 
-function getSessionsFromFolder(folder) {
-  const dir = join(AGENTS_DIR, folder, 'sessions')
-  
-  if (!existsSync(dir)) return []
-  
-  try {
-    const files = readdirSync(dir).filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
-    return files.sort((a, b) => 
-      statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime
-    )
-  } catch {
-    return []
-  }
-}
-
-function processAgentSession(agentId, agent) {
-  // er-hineda y er-coder usan la carpeta coder
-  const folder = 'coder'
-  const sessions = getSessionsFromFolder(folder)
-  
-  if (sessions.length === 0) {
-    return { ...agent, status: 'offline', task: 'Sin actividad', progress: 0, logs: [] }
-  }
-  
-  // Obtener sesión según índice
-  const sessionIndex = Math.min(agent.sessionIndex, sessions.length - 1)
-  const sessionFile = sessions[sessionIndex]
-  
-  if (!sessionFile) {
-    return { ...agent, status: 'offline', task: 'Sin sesión', progress: 0, logs: [] }
+function processSession(sessionPath, agentInfo) {
+  if (!existsSync(sessionPath)) {
+    return { ...agentInfo, status: 'offline', task: 'Sin sesión', progress: 0, logs: [] }
   }
   
   try {
-    const content = readFileSync(join(AGENTS_DIR, folder, 'sessions', sessionFile), 'utf-8')
+    const content = readFileSync(sessionPath, 'utf-8')
     const lines = content.trim().split('\n').reverse()
     
     const today = new Date().toDateString()
@@ -120,8 +93,7 @@ function processAgentSession(agentId, agent) {
     const progress = hasToolCalls ? Math.min(80, 40 + Math.floor(Math.random() * 30)) : (logs.length > 0 ? 100 : 0)
     
     return {
-      id: agentId,
-      ...agent,
+      ...agentInfo,
       status,
       task: currentTask || 'Esperando órdenes...',
       progress,
@@ -130,13 +102,33 @@ function processAgentSession(agentId, agent) {
     }
     
   } catch {
-    return { ...agent, status: 'error', task: 'Error leyendo', progress: 0, logs: [] }
+    return { ...agentInfo, status: 'error', task: 'Error', progress: 0, logs: [] }
   }
 }
 
+function getSessions() {
+  const dir = join(AGENTS_DIR, 'coder', 'sessions')
+  if (!existsSync(dir)) return []
+  
+  try {
+    const files = readdirSync(dir).filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+    return files.sort((a, b) => statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime)
+  } catch {
+    return []
+  }
+}
+
+const sessions = getSessions()
+
 const data = {}
-for (const [id, agent] of Object.entries(agents)) {
-  data[id] = processAgentSession(id, agent)
+for (let i = 0; i < subAgents.length; i++) {
+  const agent = subAgents[i]
+  if (i < sessions.length) {
+    const sessionPath = join(AGENTS_DIR, 'coder', 'sessions', sessions[i])
+    data[agent.id] = processSession(sessionPath, agent)
+  } else {
+    data[agent.id] = { ...agent, status: 'offline', task: 'Sin actividad', progress: 0, logs: [] }
+  }
 }
 
 writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
@@ -144,4 +136,4 @@ writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
   agents: data
 }, null, 2))
 
-console.log('✅ Estado actualizado')
+console.log('✅ Subagentes actualizados')
