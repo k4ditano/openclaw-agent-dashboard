@@ -1,46 +1,56 @@
-# Agent Dashboard Controller
+---
+name: agent-dashboard
+description: Dashboard en tiempo real para monitorizar agentes de OpenClaw. Usa para: (1) Ver estado de agentes, (2) Añadir nuevos agentes, (3) Configurar el monitor, (4) Desplegar el dashboard.
+---
 
-Skill para gestionar el dashboard de agentes de OpenClaw.
+# Agent Dashboard
 
-## Descripción
+Dashboard con monitoreo en tiempo real de agentes OpenClaw.
 
-Controla y configura el dashboard de monitorización de agentes en tiempo real.
+## Estructura
+
+```
+agents-dashboard/
+├── src/App.jsx              # UI React
+├── scripts/monitor-comms.mjs  # Monitor Node.js
+├── public/agent-status.json   # Estado (generado)
+└── scripts/run-monitor.sh      # Daemon
+```
+
+## Añadir Agente
+
+1. **monitor-comms.mjs** - añadir en objeto `agents`:
+```javascript
+'tu-agente': { id: 'tu-agente', name: 'Tu Agente', emoji: '🎯', color: '#f59e0b' }
+```
+
+2. **App.jsx** - añadir en array `agents`:
+```javascript
+{ id: 'tu-agente', name: 'Tu Agente', glowColor: '#f59e0b', ... }
+```
+
+3. **Carpeta sesiones**: `/home/ubuntu/.openclaw/agents/tu-agente/sessions/`
 
 ## Comandos
 
-### Estado del Dashboard
-
 ```bash
-# Ver estado actual
-curl http://localhost:3000/agent-status.json
-
-# Ver logs del monitor
-tail -f /tmp/monitor-daemon.log
-```
-
-### Añadir Nuevo Agente
-
-1. Editar `scripts/monitor-comms.mjs` - añadir entrada en `agents`
-2. Editar `src/App.jsx` - añadir en array `agents`
-3. Reiniciar el monitor
-
-### Ver Dashboard
-
-```bash
+# Desarrollo
 npm run dev
-# Acceder a http://localhost:3000
+
+# Build
+npm run build
+
+# Monitor (daemon)
+./scripts/run-monitor.sh
 ```
 
-## Ubicaciones
+## Estado API
 
-- Dashboard: `/home/ubuntu/.openclaw/workspace/agents-dashboard/`
-- Monitor: `scripts/monitor-comms.mjs`
-- Estado: `public/agent-status.json`
-- Logs: `/tmp/monitor-daemon.log`
-
-## Dependencias
-
-- Node.js 18+
-- React 18
-- Vite 5
-- Tailwind CSS 3
+Lee `public/agent-status.json` con estructura:
+```json
+{
+  "agents": {
+    "coder": { "status": "running", "task": "...", "progress": 75, "logs": [...] }
+  }
+}
+```
