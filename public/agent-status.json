@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-13T08:54:01.367Z",
+  "generatedAt": "2026-02-13T08:57:30.617Z",
   "agents": {
     "er-hineda": {
       "id": "er-hineda",
@@ -19,9 +19,9 @@
       "emoji": "🤖",
       "color": "#8b5cf6",
       "status": "running",
-      "task": "System: [2026-02-13 08:51:34 UTC] Exec failed (good-gla, signal SIGTERM)\nSystem:",
-      "progress": 71,
-      "started": "8:52:26",
+      "task": "[cron:647fcf9a-3b26-46f8-8a0d-0aa6de6dced4 Update Dashboard Metrics] Tarea: Actu",
+      "progress": 62,
+      "started": "8:55:19",
       "logs": [
         {
           "type": "user",
@@ -55,16 +55,16 @@
         },
         {
           "type": "user",
-          "text": "[cron:647fcf9a-3b26-46f8-8a0d-0aa6de6dced4 Update Dashboard Metrics] Tarea: Actu",
-          "time": "8:28:00"
+          "text": "[Fri 2026-02-13 08:55 UTC] Run the agent monitoring script and check if it's wor",
+          "time": "8:55:37"
         },
         {
           "type": "user",
           "text": "[cron:647fcf9a-3b26-46f8-8a0d-0aa6de6dced4 Update Dashboard Metrics] Tarea: Actu",
-          "time": "8:27:00"
+          "time": "8:28:00"
         }
       ],
-      "lastActivity": "2026-02-13T08:27:00.187Z"
+      "lastActivity": "2026-02-13T08:28:00.254Z"
     },
     "netops": {
       "id": "netops",
@@ -84,10 +84,11 @@
       "name": "er PR",
       "emoji": "🔍",
       "color": "#22c55e",
-      "status": "error",
-      "task": "Error leyendo sesión",
+      "status": "offline",
+      "task": "Agente no configurado",
+      "progress": 0,
       "logs": [
-        "ENOENT: no such file or directory, scandir '/home/ubuntu/.openclaw/agents/pr-reviewer/sessions'"
+        "Carpeta de sesiones no existe"
       ],
       "lastActivity": null
     }
