@@ -517,10 +517,18 @@ function AgentDetail({ agent, realTasks = null }) {
   const [tasks, setTasks] = useState([])
   
   useEffect(() => {
+    // Si hay tareas reales para este agente, usarlas
     if (realTasks && realTasks[agent.id]?.length > 0) {
       setTasks(realTasks[agent.id])
     } else {
-      setTasks(generateTasks(agent.id))
+      // Generar placeholder solo si no hay datos reales
+      const placeholders = {
+        'er-hineda': [{ name: 'Esperando órdenes de Samuel...', status: 'idle', progress: 0 }],
+        'netops': [{ name: 'Monitoreando servidores', status: 'idle', progress: 0 }],
+        'pr-reviewer': [{ name: 'Esperando PRs para revisar', status: 'idle', progress: 0 }],
+        'coder': [{ name: 'Sin tareas activas', status: 'idle', progress: 0 }]
+      }
+      setTasks(placeholders[agent.id] || [])
     }
   }, [agent.id, realTasks])
 

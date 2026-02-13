@@ -1,22 +1,12 @@
 {
-  "generatedAt": "2026-02-13T08:38:02.159Z",
+  "generatedAt": "2026-02-13T08:44:01.159Z",
   "tasks": {
     "er-hineda": [],
     "coder": [
       {
-        "name": "[Telegram Samuel Hinestrosa id:512097309 +1m 2026-02-13 08:34 UTC] Las tareas en progreso nunca camb",
-        "status": "completed",
-        "progress": 100
-      },
-      {
-        "name": "[Telegram Samuel Hinestrosa id:512097309 +2m 2026-02-13 08:26 UTC] Pero cómo vas a ejecutar un agent",
-        "status": "completed",
-        "progress": 100
-      },
-      {
-        "name": "[Telegram Samuel Hinestrosa id:512097309 +1m 2026-02-13 08:23 UTC] No me has contestado que hace\n[me",
-        "status": "completed",
-        "progress": 100
+        "name": "er serve, er hineda y er PR les veo con la misma tarea siempre.",
+        "status": "running",
+        "progress": 49
       }
     ],
     "netops": [],
