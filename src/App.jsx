@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, User, Eye, EyeOff, Folder, FileCode, Server, Search, Shield, Sparkles } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, User, Eye, EyeOff, Folder, FileCode, Server, Search, Shield, Sparkles, Maximize2, X, ChevronDown, ChevronUp } from 'lucide-react'
 
 // Simple hash function for password verification
 const hashPassword = (password) => {
@@ -477,20 +477,84 @@ function TaskItem({ task, color }) {
   )
 }
 
-// Terminal-style Log Entry
-function LogEntry({ log, color }) {
+// Terminal-style Log Entry - expanded version
+function LogEntry({ log, color, expanded = false }) {
   const isUser = log.type === 'user'
   return (
     <motion.div 
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className={`flex gap-2 text-xs py-1 border-b border-white/5`}
+      className={`flex gap-2 ${expanded ? 'text-sm py-2' : 'text-xs py-1'} border-b border-white/5`}
     >
-      <span className="text-gray-500 font-mono">{log.time}</span>
+      <span className="text-gray-500 font-mono min-w-[60px]">{log.time}</span>
       <span className={isUser ? 'text-retro-yellow' : 'text-retro-green'}>
         {isUser ? '↦' : '↤'}
       </span>
-      <span className="text-gray-300 truncate flex-1">{log.text}</span>
+      <span className={`text-gray-300 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'} flex-1`}>{log.text}</span>
+    </motion.div>
+  )
+}
+
+// Full-screen Log Modal
+function LogModal({ agent, logs, onClose }) {
+  const modalRef = useRef(null)
+  
+  useEffect(() => {
+    const handleEsc = (e) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [onClose])
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        ref={modalRef}
+        className="bg-black border-2 rounded-xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col"
+        style={{ borderColor: agent.glowColor }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between" style={{ backgroundColor: `${agent.glowColor}15` }}>
+          <div className="flex items-center gap-3">
+            <PixelCreature type={agent.id} size={48} />
+            <div>
+              <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
+              <p className="text-xs text-gray-500">{logs.length} logs</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <X size={24} className="text-gray-400" />
+          </button>
+        </div>
+        
+        {/* Modal Content */}
+        <div className="flex-1 overflow-y-auto p-4 bg-black/50">
+          <div className="font-mono text-xs">
+            <AnimatePresence>
+              {logs.map((log, i) => (
+                <LogEntry key={i} log={log} color={agent.glowColor} expanded={true} />
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+        
+        {/* Modal Footer */}
+        <div className="p-3 border-t border-white/10 text-center">
+          <span className="text-xs text-gray-500">Presiona ESC o click fuera para cerrar</span>
+        </div>
+      </motion.div>
     </motion.div>
   )
 }
@@ -499,6 +563,7 @@ function LogEntry({ log, color }) {
 function AgentDetail({ agent, agentData }) {
   const data = agentData?.[agent.id] || {}
   const logs = data.logs || []
+  const [expanded, setExpanded] = useState(false)
   
   const statusColors = {
     'running': 'text-retro-green animate-pulse',
@@ -509,70 +574,94 @@ function AgentDetail({ agent, agentData }) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="bg-black/60 rounded-lg border-2 overflow-hidden"
-      style={{ borderColor: agent.glowColor }}
-    >
-      {/* Header */}
-      <div className="p-4 border-b border-white/10" style={{ backgroundColor: `${agent.glowColor}15` }}>
-        <div className="flex items-center gap-4">
-          <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
-              <span className={`text-xs px-2 py-0.5 rounded ${data.status === 'running' ? 'bg-retro-green/20 text-retro-green' : 'bg-white/10 text-gray-400'}`}>
-                ● {data.status?.toUpperCase() || 'OFFLINE'}
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="bg-black/60 rounded-lg border-2 overflow-hidden"
+        style={{ borderColor: agent.glowColor }}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-white/10" style={{ backgroundColor: `${agent.glowColor}15` }}>
+          <div className="flex items-center gap-4">
+            <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
+                <span className={`text-xs px-2 py-0.5 rounded ${data.status === 'running' ? 'bg-retro-green/20 text-retro-green' : 'bg-white/10 text-gray-400'}`}>
+                  ● {data.status?.toUpperCase() || 'OFFLINE'}
+                </span>
+              </div>
+              <p className="text-sm text-gray-400 mt-1">{data.task || 'Sin actividad'}</p>
+            </div>
+            {/* Progress ring */}
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 -rotate-90">
+                <circle cx="32" cy="32" r="28" stroke="white/10" strokeWidth="4" fill="none" />
+                <circle 
+                  cx="32" cy="32" r="28" 
+                  stroke={agent.glowColor} 
+                  strokeWidth="4" 
+                  fill="none"
+                  strokeDasharray={`${(data.progress || 0) * 1.76} 176`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: agent.glowColor }}>
+                {data.progress || 0}%
               </span>
             </div>
-            <p className="text-sm text-gray-400 mt-1">{data.task || 'Sin actividad'}</p>
-          </div>
-          {/* Progress ring */}
-          <div className="relative w-16 h-16">
-            <svg className="w-16 h-16 -rotate-90">
-              <circle cx="32" cy="32" r="28" stroke="white/10" strokeWidth="4" fill="none" />
-              <circle 
-                cx="32" cy="32" r="28" 
-                stroke={agent.glowColor} 
-                strokeWidth="4" 
-                fill="none"
-                strokeDasharray={`${(data.progress || 0) * 1.76} 176`}
-                className="transition-all duration-500"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: agent.glowColor }}>
-              {data.progress || 0}%
-            </span>
           </div>
         </div>
-      </div>
 
-      {/* Terminal Logs */}
-      <div className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Terminal size={14} className="text-retro-green" />
-          <span className="text-xs text-gray-500 font-mono">TERMINAL LOG</span>
-          <span className="text-xs text-gray-600">({logs.length} entries)</span>
-        </div>
-        
-        <div className="bg-black/80 rounded-lg border border-white/10 p-3 h-48 overflow-y-auto font-mono text-xs">
-          {logs.length === 0 ? (
-            <div className="text-gray-600 italic">No hay logs disponibles</div>
-          ) : (
-            logs.map((log, i) => (
-              <LogEntry key={i} log={log} color={agent.glowColor} />
-            ))
+        {/* Terminal Logs */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Terminal size={14} className="text-retro-green" />
+              <span className="text-xs text-gray-500 font-mono">TERMINAL LOG</span>
+              <span className="text-xs text-gray-600">({logs.length})</span>
+            </div>
+            {logs.length > 0 && (
+              <button 
+                onClick={() => setExpanded(true)}
+                className="flex items-center gap-1 text-xs text-retro-cyan hover:text-retro-cyan/80 transition-colors"
+              >
+                <Maximize2 size={12} />
+                Expandir
+              </button>
+            )}
+          </div>
+          
+          <div className="bg-black/80 rounded-lg border border-white/10 p-3 h-48 overflow-y-auto font-mono text-xs custom-scrollbar">
+            {logs.length === 0 ? (
+              <div className="text-gray-600 italic">No hay logs disponibles</div>
+            ) : (
+              logs.map((log, i) => (
+                <LogEntry key={i} log={log} color={agent.glowColor} />
+              ))
+            )}
+          </div>
+          
+          {data.started && (
+            <div className="mt-3 text-xs text-gray-500">
+              Iniciado: <span className="text-retro-cyan font-mono">{data.started}</span>
+            </div>
           )}
         </div>
-        
-        {data.started && (
-          <div className="mt-3 text-xs text-gray-500">
-            Iniciado: <span className="text-retro-cyan font-mono">{data.started}</span>
-          </div>
+      </motion.div>
+      
+      {/* Full-screen Modal */}
+      <AnimatePresence>
+        {expanded && (
+          <LogModal 
+            agent={agent} 
+            logs={logs} 
+            onClose={() => setExpanded(false)} 
+          />
         )}
-      </div>
-    </motion.div>
+      </AnimatePresence>
+    </>
   )
 }
 
