@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, Calendar, TrendingUp, Server, Gauge, CalendarDays, FileSpreadsheet } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon } from 'lucide-react'
 
 // =============================================================================
 // THEME CONTEXT - Dark/Light Theme
@@ -273,7 +273,7 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
                     <span className="text-retro-pink font-bold">{msg.to.toUpperCase()}</span>
                     <span className="text-gray-500 dark:text-gray-600 text-[10px]">{msg.time}</span>
                   </div>
-                  <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">{msg.content}</div>
+                  <div className="text-gray-700 dark:text-gray-300 truncate">{msg.content}</div>
                 </div>
                 
                 {/* Arrow animation */}
@@ -2110,76 +2110,10 @@ function AgentDetail({ agent, agentData }) {
   )
 }
 
-// Communication Bubble - Popup when agents message each other
-function CommunicationBubble({ message, onClose }) {
-  if (!message) return null
-  
-  const getAgentColor = (agentId) => {
-    const agent = agents.find(a => a.id === agentId)
-    return agent?.glowColor || '#888'
-  }
-  
-  return (
-    <AnimatePresence>
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.8 }}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
-        >
-          <div 
-            className="bg-white dark:bg-black border-2 rounded-2xl shadow-2xl p-4 max-w-md"
-            style={{ borderColor: getAgentColor(message.from) }}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex items-center gap-2">
-                <PixelCreature type={message.from} size={32} />
-                <span 
-                  className="text-sm font-bold"
-                  style={{ color: getAgentColor(message.from) }}
-                >
-                  {message.from.toUpperCase()}
-                </span>
-              </div>
-              <motion.span
-                animate={{ x: [0, 5, 0] }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 1 }}
-                className="text-retro-green"
-              >
-                ➜
-              </motion.span>
-              <div className="flex items-center gap-2">
-                <PixelCreature type={message.to} size={32} />
-                <span 
-                  className="text-sm font-bold"
-                  style={{ color: getAgentColor(message.to) }}
-                >
-                  {message.to.toUpperCase()}
-                </span>
-              </div>
-            </div>
-            <div className="bg-gray-100 dark:bg-white/10 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300">
-              {message.content}
-            </div>
-            <button 
-              onClick={onClose}
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-white"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [currentView, setCurrentView] = useState('agents') // 'agents' | 'metrics' | 'activity'
   const { status: agentStatus, loading: statusLoading } = useAgentStatus()
   
   // Mensajes: primero los reales del backend, luego fallback simulado
@@ -2188,10 +2122,6 @@ function App() {
     return [] // Se llena con useEffect
   })
   const [talkingAgent, setTalkingAgent] = useState(null)
-  
-  // Communication bubble state
-  const [currentBubble, setCurrentBubble] = useState(null)
-  const [previousMessagesCount, setPreviousMessagesCount] = useState(0)
 
   useEffect(() => {
     // Verificar token JWT al inicio
@@ -2216,14 +2146,6 @@ function App() {
   useEffect(() => {
     if (agentStatus?.communications?.length > 0) {
       setAgentMessages(agentStatus.communications)
-      
-      // Show bubble when new message arrives (but not on initial load)
-      const latestMsg = agentStatus.communications[agentStatus.communications.length - 1]
-      if (latestMsg && previousMessagesCount > 0 && agentStatus.communications.length > previousMessagesCount) {
-        setCurrentBubble(latestMsg)
-        setTimeout(() => setCurrentBubble(null), 4000)
-      }
-      setPreviousMessagesCount(agentStatus.communications.length)
     }
   }, [agentStatus?.communications])
 
@@ -2241,17 +2163,11 @@ function App() {
     
     const interval = setInterval(() => {
       const msg = messages[Math.floor(Math.random() * messages.length)]
-      const newMsg = { 
+      setAgentMessages(prev => [...prev.slice(-10), { 
         ...msg, 
         time: new Date().toLocaleTimeString('es-ES', { hour12: false }) 
-      }
-      setAgentMessages(prev => [...prev.slice(-10), newMsg])
+      }])
       setTalkingAgent(msg.from)
-      
-      // Show bubble for simulated messages too
-      setCurrentBubble(newMsg)
-      setTimeout(() => setCurrentBubble(null), 4000)
-      
       setTimeout(() => setTalkingAgent(null), 1500)
     }, 8000)
     
@@ -2283,214 +2199,101 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white">
-      {/* Error Notifications - FASE 1 Mejorado */}
-      <EnhancedErrorNotifications 
+      {/* Error Notifications (FASE 2) */}
+      <ErrorNotifications 
         agentsData={agentStatus?.agents} 
         onAgentClick={handleErrorAgentClick}
       />
       
-      {/* Communication Bubble - shows when agents message each other */}
-      <CommunicationBubble 
-        message={currentBubble} 
-        onClose={() => setCurrentBubble(null)}
-      />
-      
       <header className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/80">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <Cpu className="text-retro-purple" size={32} />
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white font-display">AGENT DASHBOARD</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-500">er Hineda & Co.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Botón de exportar datos - FASE 1 */}
-              <GlobalExportPanel agentStatus={agentStatus} />
-              <ThemeToggle className="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10" />
-              <div className="text-right">
-                <div className="text-xs text-gray-500">HORA</div>
-                <div className="font-mono text-retro-cyan">{currentTime.toLocaleTimeString()}</div>
-              </div>
-              <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-400">SALIR</button>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Cpu className="text-retro-purple" size={32} />
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white font-display">AGENT DASHBOARD</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-500">er Hineda & Co.</p>
             </div>
           </div>
-          
-          {/* Navegación de vistas - FASE 1 */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentView('agents')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'agents' 
-                  ? 'bg-retro-purple text-white' 
-                  : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20'
-              }`}
-            >
-              <Cpu size={16} />
-              Agentes
-            </button>
-            <button
-              onClick={() => setCurrentView('metrics')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'metrics' 
-                  ? 'bg-retro-purple text-white' 
-                  : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20'
-              }`}
-            >
-              <BarChart3 size={16} />
-              Métricas Global
-            </button>
-            <button
-              onClick={() => setCurrentView('activity')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentView === 'activity' 
-                  ? 'bg-retro-purple text-white' 
-                  : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20'
-              }`}
-            >
-              <CalendarDays size={16} />
-              Actividad
-            </button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle className="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10" />
+            <div className="text-right">
+              <div className="text-xs text-gray-500">HORA</div>
+              <div className="font-mono text-retro-cyan">{currentTime.toLocaleTimeString()}</div>
+            </div>
+            <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-400">SALIR</button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* VISTA DE AGENTES - Vista por defecto */}
-        {currentView === 'agents' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {agents.map(agent => (
-                <AgentCard 
-                  key={agent.id} 
-                  agent={agent} 
-                  isSelected={selectedAgent.id === agent.id} 
-                  onClick={() => setSelectedAgent(agent)}
-                  agentData={agentStatus?.agents}
-                  isTalking={talkingAgent === agent.id}
-                />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {agents.map(agent => (
+            <AgentCard 
+              key={agent.id} 
+              agent={agent} 
+              isSelected={selectedAgent.id === agent.id} 
+              onClick={() => setSelectedAgent(agent)}
+              agentData={agentStatus?.agents}
+              isTalking={talkingAgent === agent.id}
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} />
+          </div>
+          
+          <div className="space-y-4">
+            {/* Comms Terminal */}
+            <AgentTerminal 
+              messages={agentStatus?.communications || agentMessages} 
+              onAgentClick={handleAgentClickFromTerminal}
+            />
+
+            {/* Estado del sistema */}
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-pink p-4">
+              <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
+                <Activity size={16} />
+                ESTADO DEL SISTEMA
+              </h3>
+              {[
+                { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
+                { label: 'Agentes Activos', value: agentStatus?.metrics?.activeAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'running' || a.status === 'active').length, color: 'text-retro-cyan' },
+                { label: 'Agentes Idle', value: agentStatus?.metrics?.idleAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'idle').length, color: 'text-retro-yellow' },
+                { label: 'Agentes Error', value: agentStatus?.metrics?.errorAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'error').length, color: 'text-retro-red' },
+                { label: 'Última Actualización', value: agentStatus?.generatedAt ? new Date(agentStatus.generatedAt).toLocaleTimeString() : '--:--:--', color: 'text-gray-400' },
+                { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-500 text-sm">{item.label}</span>
+                  <span className={`font-mono ${item.color}`}>{item.value}</span>
+                </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} />
-              </div>
-              
-              <div className="space-y-4">
-                {/* Comms Terminal */}
-                <AgentTerminal 
-                  messages={agentStatus?.communications || agentMessages} 
-                  onAgentClick={handleAgentClickFromTerminal}
-                />
-
-                {/* Estado del sistema */}
-                <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-pink p-4">
-                  <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
-                    <Activity size={16} />
-                    ESTADO DEL SISTEMA
-                  </h3>
-                  {[
-                    { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
-                    { label: 'Agentes Activos', value: agentStatus?.metrics?.activeAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'running' || a.status === 'active').length, color: 'text-retro-cyan' },
-                    { label: 'Agentes Idle', value: agentStatus?.metrics?.idleAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'idle').length, color: 'text-retro-yellow' },
-                    { label: 'Agentes Error', value: agentStatus?.metrics?.errorAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'error').length, color: 'text-retro-red' },
-                    { label: 'Última Actualización', value: agentStatus?.generatedAt ? new Date(agentStatus.generatedAt).toLocaleTimeString() : '--:--:--', color: 'text-gray-400' },
-                    { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                      <span className="text-gray-500 text-sm">{item.label}</span>
-                      <span className={`font-mono ${item.color}`}>{item.value}</span>
-                    </div>
-                  ))}
+            {/* Métricas de Tokens */}
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-purple p-4">
+              <h3 className="text-retro-purple font-mono text-sm mb-3 flex items-center gap-2">
+                <Zap size={16} />
+                MÉTRICAS DE TOKENS
+              </h3>
+              {[
+                { label: 'Input', value: agentStatus?.metrics?.tokens?.input ?? 0, color: 'text-retro-cyan', suffix: '' },
+                { label: 'Output', value: agentStatus?.metrics?.tokens?.output ?? 0, color: 'text-retro-pink', suffix: '' },
+                { label: 'Total', value: agentStatus?.metrics?.tokens?.total ?? 0, color: 'text-retro-yellow', suffix: ' tokens' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
+                  <span className="text-gray-500 text-sm">{item.label}</span>
+                  <span className={`font-mono ${item.color}`}>{item.value.toLocaleString()}{item.suffix}</span>
                 </div>
-
-                {/* Métricas de Tokens */}
-                <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-purple p-4">
-                  <h3 className="text-retro-purple font-mono text-sm mb-3 flex items-center gap-2">
-                    <Zap size={16} />
-                    MÉTRICAS DE TOKENS
-                  </h3>
-                  {[
-                    { label: 'Input', value: agentStatus?.metrics?.tokens?.input ?? 0, color: 'text-retro-cyan', suffix: '' },
-                    { label: 'Output', value: agentStatus?.metrics?.tokens?.output ?? 0, color: 'text-retro-pink', suffix: '' },
-                    { label: 'Total', value: agentStatus?.metrics?.tokens?.total ?? 0, color: 'text-retro-yellow', suffix: ' tokens' },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                      <span className="text-gray-500 text-sm">{item.label}</span>
-                      <span className={`font-mono ${item.color}`}>{item.value.toLocaleString()}{item.suffix}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Activity Charts (FASE 2) */}
-                <ActivityCharts agentStatus={agentStatus} />
-              </div>
+              ))}
             </div>
-          </>
-        )}
 
-        {/* VISTA DE MÉTRICAS GLOBAL - FASE 1 */}
-        {currentView === 'metrics' && (
-          <div className="space-y-6">
-            <GlobalMetricsDashboard agentStatus={agentStatus} />
+            {/* Activity Charts (FASE 2) */}
+            <ActivityCharts agentStatus={agentStatus} />
           </div>
-        )}
-
-        {/* VISTA DE ACTIVIDAD - FASE 1 */}
-        {currentView === 'activity' && (
-          <div className="space-y-6">
-            <ActivityHeatmap agentStatus={agentStatus} />
-            
-            {/* Resumen de actividad */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-green p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity size={16} className="text-retro-green" />
-                  <span className="text-xs text-retro-green">ACTIVIDAD HOY</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {Object.values(agentStatus?.agents || {}).reduce((sum, a) => sum + (a.tokens?.total || 0), 0).toLocaleString()}
-                </div>
-                <div className="text-xs text-gray-500">tokens</div>
-              </div>
-              
-              <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-cyan p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Cpu size={16} className="text-retro-cyan" />
-                  <span className="text-xs text-retro-cyan">SESIONES</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {Object.values(agentStatus?.agents || {}).filter(a => a.status !== 'offline').length}
-                </div>
-                <div className="text-xs text-gray-500">activas</div>
-              </div>
-              
-              <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-yellow p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock size={16} className="text-retro-yellow" />
-                  <span className="text-xs text-retro-yellow">ÚLTIMA ACT.</span>
-                </div>
-                <div className="text-lg font-bold text-white">
-                  {agentStatus?.generatedAt 
-                    ? new Date(agentStatus.generatedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-                    : '--:--'}
-                </div>
-                <div className="text-xs text-gray-500">actualizado</div>
-              </div>
-              
-              <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-purple p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Gauge size={16} className="text-retro-purple" />
-                  <span className="text-xs text-retro-purple">UPTIME</span>
-                </div>
-                <div className="text-2xl font-bold text-retro-green">99.9%</div>
-                <div className="text-xs text-gray-500">sistema</div>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </main>
 
       <footer className="border-t border-white/10 py-4 mt-8">
