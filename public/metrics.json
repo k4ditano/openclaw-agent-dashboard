@@ -1,23 +1,17 @@
 {
-  "generatedAt": "2026-02-13T08:15:00.000Z",
+  "generatedAt": "2026-02-13T08:28:00.000Z",
   "gateway": { "status": "online", "readonly": true, "secure": true },
   "sessions": {
     "total": 4,
     "byChannel": {
       "webchat": 2,
-      "telegram": 1,
-      "unknown": 1
+      "telegram": 2
     },
     "byKind": {
       "other": 3,
       "group": 1
     },
-    "totalTokens": 245151
+    "totalTokens": 251733
   },
-  "agents": {
-    "er-hineda": { "sessions": 0, "tokens": 0, "lastActivity": null },
-    "coder": { "sessions": 4, "tokens": 245151, "lastActivity": "1770970503067" },
-    "netops": { "sessions": 0, "tokens": 0, "lastActivity": null },
-    "pr-reviewer": { "sessions": 0, "tokens": 0, "lastActivity": null }
-  }
+  "agents": {}
 }

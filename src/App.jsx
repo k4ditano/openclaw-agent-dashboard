@@ -418,7 +418,7 @@ function useRealMetrics() {
       }
     }
     fetchData()
-    const interval = setInterval(fetchData, 30000) // Refresh cada 30s
+    const interval = setInterval(fetchData, 5000) // Refresh cada 5 segundos
     return () => clearInterval(interval)
   }, [])
 
