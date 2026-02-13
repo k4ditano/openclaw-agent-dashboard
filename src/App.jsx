@@ -1725,9 +1725,8 @@ function GlobalExportPanel({ agentStatus }) {
         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
           exporting 
             ? 'bg-gray-600 cursor-not-allowed' 
-            : 'bg-retro-purple hover:bg-retro-purple/80'
--white`}
-             } text >
+            : 'bg-retro-purple hover:bg-retro-purple/80 text-white'
+        }`}>
         {exporting ? (
           <RefreshCw size={16} className="animate-spin" />
         ) : (
