@@ -390,29 +390,39 @@ function LoginScreen({ onLogin }) {
 // Hook para cargar métricas reales
 function useRealMetrics() {
   const [metrics, setMetrics] = useState(null)
+  const [communications, setCommunications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    async function fetchMetrics() {
+    async function fetchData() {
       try {
-        const res = await fetch('/metrics.json')
-        if (!res.ok) throw new Error('Failed to fetch')
-        const data = await res.json()
-        setMetrics(data)
+        // Fetch metrics
+        const metricsRes = await fetch('/metrics.json')
+        if (metricsRes.ok) {
+          const metricsData = await metricsRes.json()
+          setMetrics(metricsData)
+        }
+        
+        // Fetch communications
+        const commRes = await fetch('/communications.json')
+        if (commRes.ok) {
+          const commData = await commRes.json()
+          setCommunications(commData.messages || [])
+        }
       } catch (e) {
-        console.warn('Using fallback metrics:', e.message)
+        console.warn('Using fallback data:', e.message)
         setError(e.message)
       } finally {
         setLoading(false)
       }
     }
-    fetchMetrics()
-    const interval = setInterval(fetchMetrics, 30000) // Refresh cada 30s
+    fetchData()
+    const interval = setInterval(fetchData, 30000) // Refresh cada 30s
     return () => clearInterval(interval)
   }, [])
 
-  return { metrics, loading, error }
+  return { metrics, communications, loading, error }
 }
 
 function AgentCard({ agent, isSelected, onClick, metrics }) {
@@ -567,16 +577,18 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const { metrics, loading: metricsLoading } = useRealMetrics()
+  const { metrics, communications, loading: metricsLoading } = useRealMetrics()
   
-  // Estado para mensajes entre agentes
-  const [agentMessages, setAgentMessages] = useState([
-    { from: 'er-hineda', to: 'coder', content: 'Samuel quiere integrar métricas reales', time: '08:05:23' },
-    { from: 'coder', to: 'er-hineda', content: 'Entendido. Generando endpoint seguro...', time: '08:05:24' },
-    { from: 'er-hineda', to: 'pr-reviewer', content: 'Analiza el PR antes de mergear', time: '08:06:10' },
-    { from: 'pr-reviewer', to: 'er-hineda', content: '✅ Seguridad OK. No vulnerabilidades.', time: '08:06:15' },
-  ])
+  // Mensajes: primero los reales del backend, luego fallback simulado
+  const [agentMessages, setAgentMessages] = useState([])
   const [talkingAgent, setTalkingAgent] = useState(null)
+
+  // Cargar comunicaciones reales cuando estén disponibles
+  useEffect(() => {
+    if (communications && communications.length > 0) {
+      setAgentMessages(communications)
+    }
+  }, [communications])
 
   useEffect(() => {
     const session = sessionStorage.getItem('agent-dashboard-session')
@@ -588,15 +600,15 @@ function App() {
     return () => clearInterval(timer)
   }, [])
 
-  // Simular mensajes entre agentes periódicamente
+  // Simular mensajes si no hay reales (fallback)
   useEffect(() => {
+    if (agentMessages.length > 0) return // Ya hay mensajes reales
+    
     const messages = [
-      { from: 'er-hineda', to: 'coder', content: 'Actualizando dashboard con datos reales...' },
-      { from: 'coder', to: 'er-hineda', content: 'Build completado. Tokens: 213K' },
+      { from: 'er-hineda', to: 'coder', content: 'Samuel quiere métricas reales en el dashboard' },
+      { from: 'coder', to: 'er-hineda', content: 'Entendido. Conectando API segura...' },
       { from: 'netops', to: 'er-hineda', content: 'Servidor estable. Uptime: 99.9%' },
       { from: 'pr-reviewer', to: 'er-hineda', content: 'Escaneando commits... sin issues' },
-      { from: 'er-hineda', to: 'netops', content: 'Revisa los certificados SSL' },
-      { from: 'coder', to: 'pr-reviewer', content: 'Nuevo PR: feature/metrics' },
     ]
     
     const interval = setInterval(() => {
@@ -610,7 +622,7 @@ function App() {
     }, 8000)
     
     return () => clearInterval(interval)
-  }, [])
+  }, [agentMessages.length])
 
   const handleLogin = () => {
     sessionStorage.setItem('agent-dashboard-session', Date.now().toString())

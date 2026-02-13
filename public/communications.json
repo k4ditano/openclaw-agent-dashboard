@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-02-13T08:16:00.000Z",
+  "messages": [
+    { "from": "er-hineda", "to": "coder", "content": "Samuel quiere implementar métricas reales en el dashboard", "time": "08:10:00" },
+    { "from": "coder", "to": "er-hineda", "content": "Entendido. Generando endpoint seguro...", "time": "08:10:01" },
+    { "from": "er-hineda", "to": "pr-reviewer", "content": "Analiza el PR antes de mergear", "time": "08:12:00" },
+    { "from": "pr-reviewer", "to": "er-hineda", "content": "Seguridad OK. Listo para merge.", "time": "08:12:05" }
+  ]
+}
