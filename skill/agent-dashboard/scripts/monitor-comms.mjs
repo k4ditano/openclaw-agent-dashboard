@@ -8,12 +8,12 @@ import { join } from 'path'
 const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
 const OUTPUT_DIR = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public'
 
-// Mapeo de agentes a carpetas
+// Mapeo de agentes
 const agents = [
-  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', folder: 'coder', desc: 'Sesión principal' },
-  { id: 'er-coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6', folder: 'coder', desc: 'Constructor de código' },
-  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', folder: 'netops', desc: 'Servidor y red' },
-  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', folder: 'pr-reviewer', desc: 'Revisor de código' }
+  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', folder: 'coder', sessionKey: 'main', desc: 'Sesión principal' },
+  { id: 'er-coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6', folder: 'coder', sessionKey: 'subagent', desc: 'Subagente de código' },
+  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', folder: 'netops', sessionKey: 'main', desc: 'Servidor y red' },
+  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', folder: 'pr-reviewer', sessionKey: 'main', desc: 'Revisor de código' }
 ]
 
 function isUsefulLog(text) {
@@ -33,6 +33,46 @@ function cleanText(text) {
   return text.replace(/\[.*?\]\s*/g, '').replace(/`/g, '').trim().substring(0, 100)
 }
 
+function findSessionByKey(dir, key) {
+  if (!existsSync(dir)) return null
+  
+  try {
+    const content = readFileSync(join(dir, 'sessions.json'), 'utf-8')
+    const sessions = JSON.parse(content)
+    
+    // Buscar sesión que contenga la key
+    for (const [sessionKey, data] of Object.entries(sessions)) {
+      if (sessionKey.includes(key)) {
+        const file = data.sessionFile
+        if (file && existsSync(join(dir, file))) {
+          return file
+        }
+      }
+    }
+  } catch {}
+  
+  return null
+}
+
+function getLatestSession(dir, excludeMain = false) {
+  if (!existsSync(dir)) return null
+  
+  try {
+    const files = readdirSync(dir).filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+    if (files.length === 0) return null
+    
+    const sorted = files.sort((a, b) => statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime)
+    
+    // Excluir sesión principal si se pide
+    if (excludeMain && sorted.length > 1) {
+      return sorted[1]
+    }
+    return sorted[0]
+  } catch {
+    return null
+  }
+}
+
 function processAgent(agentInfo) {
   const dir = join(AGENTS_DIR, agentInfo.folder, 'sessions')
   
@@ -40,14 +80,22 @@ function processAgent(agentInfo) {
     return { ...agentInfo, status: 'offline', task: 'Sin carpeta', progress: 0, logs: [] }
   }
   
+  let sessionFile = null
+  
+  // Buscar sesión específica
+  if (agentInfo.sessionKey === 'main') {
+    sessionFile = findSessionByKey(join(AGENTS_DIR, agentInfo.folder), 'main')
+    if (!sessionFile) sessionFile = getLatestSession(dir)
+  } else if (agentInfo.sessionKey === 'subagent') {
+    // Para er-coder, buscar subagente (excluir main)
+    sessionFile = getLatestSession(dir, true)
+  }
+  
+  if (!sessionFile) {
+    return { ...agentInfo, status: 'offline', task: 'Sin sesión', progress: 0, logs: [] }
+  }
+  
   try {
-    const files = readdirSync(dir).filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
-    if (files.length === 0) {
-      return { ...agentInfo, status: 'offline', task: 'Sin actividad', progress: 0, logs: [] }
-    }
-    
-    const sorted = files.sort((a, b) => statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime)
-    const sessionFile = sorted[0]
     const content = readFileSync(join(dir, sessionFile), 'utf-8')
     const lines = content.trim().split('\n').reverse()
     
@@ -111,7 +159,7 @@ function processAgent(agentInfo) {
     }
     
   } catch (e) {
-    return { ...agentInfo, status: 'error', task: 'Error: ' + e.message, progress: 0, logs: [] }
+    return { ...agentInfo, status: 'error', task: 'Error', progress: 0, logs: [] }
   }
 }
 
