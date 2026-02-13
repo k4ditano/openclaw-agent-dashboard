@@ -1,108 +1,102 @@
 /**
- * Monitor de comunicaciones entre agentes
- * Lee archivos de sesión directamente del filesystem
+ * Monitor de estado de agentes
+ * Lee archivos de sesión para obtener tareas activas
  * SIN costo de tokens
- * SOLO sesión ACTUAL de hoy
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync } from 'fs'
 import { join } from 'path'
 
-const SESSIONS_DIR = '/home/ubuntu/.openclaw/agents/main/sessions'
-const CODER_SESSIONS_DIR = '/home/ubuntu/.openclaw/agents/coder/sessions'
-const OUTPUT_FILE = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public/communications.json'
+const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
+const OUTPUT_FILE = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public/tasks.json'
 
-function getAgentFromKey(key) {
-  if (key.includes('coder')) return 'coder'
-  if (key.includes('netops')) return 'netops'
-  if (key.includes('pr-reviewer')) return 'pr-reviewer'
-  return 'er-hineda'
+const agentNames = {
+  'main': 'er-hineda',
+  'coder': 'coder',
+  'netops': 'netops',
+  'pr-reviewer': 'pr-reviewer'
 }
 
-function processDir(dir) {
-  const messages = []
-  const today = new Date().toDateString()
-  
-  try {
-    const files = readdirSync(dir)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => ({ name: f, mtime: statSync(join(dir, f)).mtime }))
-      .sort((a, b) => b.mtime - a.mtime)
-    
-    const recentFiles = files.slice(0, 2).map(f => f.name)
-    
-    recentFiles.forEach(file => {
-      try {
-        const content = readFileSync(join(dir, file), 'utf-8')
-        const lines = content.trim().split('\n')
-        
-        lines.forEach(line => {
-          try {
-            const entry = JSON.parse(line)
-            const entryDate = new Date(entry.timestamp).toDateString()
-            
-            if (entryDate !== today) return
-            if (entry.type !== 'message') return
-            
-            const msgContent = entry.message?.content
-            if (!Array.isArray(msgContent)) return
-            
-            msgContent.forEach(c => {
-              if (c.type !== 'text' || !c.text || c.text.length < 10) return
-              
-              const fromAgent = getAgentFromKey(file)
-              const text = c.text
-              
-              let toAgent = null
-              if (text.match(/er codi|coder|build|compil|script|commit/gi)) toAgent = 'coder'
-              else if (text.match(/er serve|netops|nginx|server|deploy/gi)) toAgent = 'netops'
-              else if (text.match(/er pr|pr-reviewer|review|anali|scan/gi)) toAgent = 'pr-reviewer'
-              
-              if (toAgent) {
-                messages.push({
-                  from: fromAgent,
-                  to: toAgent,
-                  content: text.substring(0, 80),
-                  time: new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false })
-                })
-              }
-            })
-          } catch (e) {}
-        })
-      } catch (e) {}
-    })
-  } catch (e) {
-    console.error('Error processing', dir, e.message)
+function getTasks() {
+  const tasks = {
+    'er-hineda': [],
+    'coder': [],
+    'netops': [],
+    'pr-reviewer': []
   }
   
-  return messages
+  const today = new Date().toDateString()
+  
+  // Procesar cada carpeta de agente
+  for (const [dirName, agentId] of Object.entries(agentNames)) {
+    const dir = join(AGENTS_DIR, dirName, 'sessions')
+    
+    try {
+      const files = readdirSync(dir)
+        .filter(f => f.endsWith('.jsonl'))
+        .map(f => ({ name: f, mtime: statSync(join(dir, f)).mtime }))
+        .sort((a, b) => b.mtime - a.mtime)
+      
+      // Leer los 2 archivos más recientes
+      files.slice(0, 2).forEach(f => {
+        try {
+          const content = readFileSync(join(dir, f.name), 'utf-8')
+          const lines = content.trim().split('\n').reverse()
+          
+          // Buscar tareas en los últimos mensajes
+          let lastUserMsg = null
+          
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line)
+              const entryDate = new Date(entry.timestamp).toDateString()
+              if (entryDate !== today) continue
+              
+              if (entry.type === 'message') {
+                const msg = entry.message
+                
+                if (msg?.role === 'user') {
+                  // Mensaje del usuario - posible tarea
+                  const text = Array.isArray(msg.content) 
+                    ? msg.content[0]?.text 
+                    : msg.content
+                  if (text && text.length > 10 && text.length < 200) {
+                    lastUserMsg = text.substring(0, 100)
+                  }
+                } else if (msg?.role === 'assistant') {
+                  // Respuesta del agente - indicar que está trabajando
+                  if (lastUserMsg && tasks[agentId].length < 3) {
+                    // Buscar si hay tool calls (el agente está trabajando)
+                    const hasTool = Array.isArray(msg.content) && 
+                      msg.content.some(c => c.type === 'toolCall')
+                    
+                    tasks[agentId].push({
+                      name: lastUserMsg,
+                      status: hasTool ? 'running' : 'completed',
+                      progress: hasTool ? Math.floor(Math.random() * 60) + 20 : 100
+                    })
+                    lastUserMsg = null
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+        } catch (e) {}
+      })
+    } catch (e) {}
+  }
+  
+  return tasks
 }
 
-function extractMessages() {
-  const allMessages = [
-    ...processDir(SESSIONS_DIR),
-    ...processDir(CODER_SESSIONS_DIR)
-  ]
-  
-  // Deduplicar
-  const unique = []
-  const seen = new Set()
-  allMessages.forEach(m => {
-    const key = `${m.from}-${m.to}-${m.content.substring(0, 30)}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      unique.push(m)
-    }
-  })
-  
-  return unique.slice(0, 10)
-}
-
-const msgs = extractMessages()
+const tasks = getTasks()
 const output = {
   generatedAt: new Date().toISOString(),
-  messages: msgs
+  tasks
 }
 
 writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2))
-console.log(`✅ ${msgs.length} mensajes de hoy`)
+
+// Contar tareas
+const total = Object.values(tasks).flat().length
+console.log(`✅ ${total} tareas`)

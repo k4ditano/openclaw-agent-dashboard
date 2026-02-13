@@ -387,10 +387,11 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-// Hook para cargar métricas reales
+// Hook para cargar métricas y tareas reales
 function useRealMetrics() {
   const [metrics, setMetrics] = useState(null)
   const [communications, setCommunications] = useState([])
+  const [tasks, setTasks] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -410,6 +411,13 @@ function useRealMetrics() {
           const commData = await commRes.json()
           setCommunications(commData.messages || [])
         }
+        
+        // Fetch tasks
+        const tasksRes = await fetch('/tasks.json')
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json()
+          setTasks(tasksData.tasks)
+        }
       } catch (e) {
         console.warn('Using fallback data:', e.message)
         setError(e.message)
@@ -422,7 +430,7 @@ function useRealMetrics() {
     return () => clearInterval(interval)
   }, [])
 
-  return { metrics, communications, loading, error }
+  return { metrics, communications, tasks, loading, error }
 }
 
 function AgentCard({ agent, isSelected, onClick, metrics }) {
@@ -505,16 +513,16 @@ function TaskItem({ task, color }) {
   )
 }
 
-function AgentDetail({ agent }) {
+function AgentDetail({ agent, realTasks = null }) {
   const [tasks, setTasks] = useState([])
   
   useEffect(() => {
-    setTasks(generateTasks(agent.id))
-    const interval = setInterval(() => {
+    if (realTasks && realTasks[agent.id]?.length > 0) {
+      setTasks(realTasks[agent.id])
+    } else {
       setTasks(generateTasks(agent.id))
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [agent.id])
+    }
+  }, [agent.id, realTasks])
 
   return (
     <motion.div
@@ -577,7 +585,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const { metrics, communications, loading: metricsLoading } = useRealMetrics()
+  const { metrics, communications, tasks, loading: metricsLoading } = useRealMetrics()
   
   // Mensajes: primero los reales del backend, luego fallback simulado
   const [agentMessages, setAgentMessages] = useState([])
@@ -678,7 +686,7 @@ function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <AgentDetail agent={selectedAgent} />
+            <AgentDetail agent={selectedAgent} realTasks={tasks} />
           </div>
           
           <div className="space-y-4">
