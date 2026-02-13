@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-02-13T08:49:02.172Z",
+  "agents": {
+    "er-hineda": {
+      "id": "er-hineda",
+      "name": "er Hineda",
+      "emoji": "🧉",
+      "color": "#ec4899",
+      "status": "idle",
+      "task": "Esperando órdenes...",
+      "progress": 0,
+      "started": null,
+      "logs": [],
+      "lastActivity": null
+    },
+    "coder": {
+      "id": "coder",
+      "name": "er Codi",
+      "emoji": "🤖",
+      "color": "#8b5cf6",
+      "status": "running",
+      "task": "[Telegram Samuel Hinestrosa id:512097309 +42s 2026-02-13 08:47 UTC] Mejora toda ",
+      "progress": 50,
+      "started": "8:47:02",
+      "logs": [
+        {
+          "type": "user",
+          "text": "System: [2026-02-13 07:53:18 UTC] Exec failed (amber-sh, code 0) :: > agents-das",
+          "time": "8:01:49"
+        },
+        {
+          "type": "user",
+          "text": "[Telegram Samuel Hinestrosa id:512097309 +1m 2026-02-13 07:19 UTC] Me gustaría q",
+          "time": "7:19:03"
+        },
+        {
+          "type": "user",
+          "text": "System: [2026-02-13 07:01:56 UTC] Cron: Informe matutino enviado a Samuel ✅\n\nEl ",
+          "time": "7:17:01"
+        },
+        {
+          "type": "user",
+          "text": "[Fri 2026-02-13 07:02 UTC] Agent-to-agent announce step.",
+          "time": "7:04:11"
+        },
+        {
+          "type": "user",
+          "text": "[Fri 2026-02-13 07:02 UTC] ¡Me alegro que te mole la idea, Samuel! 🧉\n\nLa integr",
+          "time": "7:02:57"
+        },
+        {
+          "type": "user",
+          "text": "[Fri 2026-02-13 07:01 UTC] ## 🌅 Informe Matutino - Agent Dashboard\n\n### ✅ Lo qu",
+          "time": "7:01:29"
+        },
+        {
+          "type": "user",
+          "text": "[cron:647fcf9a-3b26-46f8-8a0d-0aa6de6dced4 Update Dashboard Metrics] Tarea: Actu",
+          "time": "8:28:00"
+        },
+        {
+          "type": "user",
+          "text": "[cron:647fcf9a-3b26-46f8-8a0d-0aa6de6dced4 Update Dashboard Metrics] Tarea: Actu",
+          "time": "8:27:00"
+        }
+      ],
+      "lastActivity": "2026-02-13T08:27:00.187Z"
+    },
+    "netops": {
+      "id": "netops",
+      "name": "er Serve",
+      "emoji": "🌐",
+      "color": "#06b6d4",
+      "status": "offline",
+      "task": "Sin sesiones",
+      "progress": 0,
+      "logs": [
+        "Agente sin actividad"
+      ],
+      "lastActivity": null
+    },
+    "pr-reviewer": {
+      "id": "pr-reviewer",
+      "name": "er PR",
+      "emoji": "🔍",
+      "color": "#22c55e",
+      "status": "error",
+      "task": "Error leyendo sesión",
+      "logs": [
+        "ENOENT: no such file or directory, scandir '/home/ubuntu/.openclaw/agents/pr-reviewer/sessions'"
+      ],
+      "lastActivity": null
+    }
+  }
+}

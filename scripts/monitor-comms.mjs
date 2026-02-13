@@ -1,62 +1,31 @@
 /**
- * Monitor de estado de agentes
- * Lee archivos de sesión para obtener tareas activas
+ * Monitor completo de agentes
+ * Genera: tareas, logs, estado, comunicaciones
+ * Estilo terminal/logs
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync } from 'fs'
 import { join } from 'path'
 
 const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
-const OUTPUT_FILE = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public/tasks.json'
+const OUTPUT_DIR = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public'
 
-const agentNames = {
-  'main': 'er-hineda',
-  'coder': 'coder',
-  'netops': 'netops',
-  'pr-reviewer': 'pr-reviewer'
+const agents = {
+  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899' },
+  'coder': { id: 'coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6' },
+  'netops': { id: 'netops', name: 'er Serve', emoji: '🌐', color: '#06b6d4' },
+  'pr-reviewer': { id: 'pr-reviewer', name: 'er PR', emoji: '🔍', color: '#22c55e' }
 }
 
-// Palabras clave para detectar tipo de tarea
-const taskKeywords = {
-  'coder': ['build', 'compil', 'script', 'commit', 'push', 'pr ', 'merge', 'branch', 'deploy', 'code', 'test', 'bug', 'fix', 'feat', 'repo', 'git'],
-  'netops': ['server', 'nginx', 'deploy', 'docker', 'ssl', 'cert', 'domain', 'ip', 'config', 'cloudflare', 'ssh'],
-  'pr-reviewer': ['review', 'pr ', 'commit', 'scan', 'security', 'vuln', 'code smell', 'anali'],
-  'er-hineda': ['orquest', 'coord', 'organi', 'memory', 'record', 'tarea', ' Samuel']
-}
-
-function detectTaskType(text) {
-  const lower = text.toLowerCase()
-  for (const [agent, keywords] of Object.entries(taskKeywords)) {
-    if (keywords.some(k => lower.includes(k))) {
-      return agent
-    }
-  }
-  return null
-}
-
-function cleanTaskName(text) {
-  // Quitar prefijos como [Telegram...]
-  return text
-    .replace(/\[.*?\]\s*/g, '')
-    .replace(/Samuel.*?dice.*?:/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .substring(0, 80)
-}
-
-function getTasks() {
-  const tasks = {
-    'er-hineda': [],
-    'coder': [],
-    'netops': [],
-    'pr-reviewer': []
-  }
-  
+function getAgentData() {
   const today = new Date().toDateString()
-  const now = Date.now()
+  const result = {}
   
-  for (const [dirName, agentId] of Object.entries(agentNames)) {
+  for (const [dirName, agent] of Object.entries(agents)) {
     const dir = join(AGENTS_DIR, dirName, 'sessions')
+    const taskData = { name: '', status: 'idle', progress: 0, started: null }
+    const logs = []
+    let lastActivity = null
     
     try {
       const files = readdirSync(dir)
@@ -64,57 +33,95 @@ function getTasks() {
         .map(f => ({ name: f, mtime: statSync(join(dir, f)).mtime }))
         .sort((a, b) => b.mtime - a.mtime)
       
+      if (files.length === 0) {
+        result[agent.id] = {
+          ...agent,
+          status: 'offline',
+          task: 'Sin sesiones',
+          progress: 0,
+          logs: ['Agente sin actividad'],
+          lastActivity: null
+        }
+        continue
+      }
+      
+      // Procesar archivos recientes
+      const lines = []
       files.slice(0, 3).forEach(f => {
         try {
           const content = readFileSync(join(dir, f.name), 'utf-8')
-          const lines = content.trim().split('\n').reverse()
-          
-          for (const line of lines) {
-            try {
-              const entry = JSON.parse(line)
-              const entryDate = new Date(entry.timestamp).toDateString()
-              if (entryDate !== today) continue
-              
-              if (entry.type === 'message' && entry.message?.role === 'user') {
-                const text = Array.isArray(entry.message.content) 
-                  ? entry.message.content[0]?.text || ''
-                  : entry.message.content || ''
-                
-                if (text.length > 15 && text.length < 300) {
-                  const clean = cleanTaskName(text)
-                  
-                  // Detectar si hay tool calls recientes (el agente está trabajando)
-                  // Buscar en líneas siguientes
-                  const isRunning = lines.some(l => {
-                    try {
-                      const e = JSON.parse(l)
-                      return e.type === 'message' && 
-                             e.message?.role === 'assistant' &&
-                             Array.isArray(e.message.content) &&
-                             e.message.content.some(c => c.type === 'toolCall')
-                    } catch { return false }
-                  })
-                  
-                  if (tasks[agentId].length < 3) {
-                    tasks[agentId].push({
-                      name: clean,
-                      status: isRunning ? 'running' : 'completed',
-                      progress: isRunning ? Math.floor(Math.random() * 40) + 40 : 100
-                    })
-                  }
-                  break // Solo última tarea
-                }
-              }
-            } catch {}
-          }
+          lines.push(...content.trim().split('\n').reverse())
         } catch {}
       })
-    } catch {}
+      
+      let hasToolCalls = false
+      
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line)
+          const entryDate = new Date(entry.timestamp).toDateString()
+          
+          if (entryDate !== today) continue
+          lastActivity = entry.timestamp
+          
+          if (entry.type === 'message') {
+            const msg = entry.message
+            
+            // Logs de la conversación
+            if (msg?.role === 'user') {
+              const text = Array.isArray(msg.content) ? msg.content[0]?.text : msg.content
+              if (text && text.length > 15) {
+                logs.push({ type: 'user', text: text.substring(0, 80), time: new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false }) })
+              }
+            } else if (msg?.role === 'assistant') {
+              const text = Array.isArray(msg.content) ? msg.content[0]?.text : msg.content
+              if (text && text.length > 10) {
+                logs.push({ type: 'agent', text: text.substring(0, 100), time: new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false }) })
+              }
+              
+              // Detectar si está trabajando
+              if (Array.isArray(msg.content) && msg.content.some(c => c.type === 'toolCall')) {
+                hasToolCalls = true
+              }
+            }
+          }
+        } catch {}
+      }
+      
+      // Última tarea del usuario
+      const userLog = logs.find(l => l.type === 'user')
+      
+      if (userLog) {
+        taskData.name = userLog.text
+        taskData.started = userLog.time
+        taskData.status = hasToolCalls ? 'running' : 'completed'
+        taskData.progress = hasToolCalls ? Math.min(95, 30 + Math.floor(Math.random() * 50)) : 100
+      }
+      
+      result[agent.id] = {
+        ...agent,
+        status: hasToolCalls ? 'running' : (logs.length > 0 ? 'active' : 'idle'),
+        task: taskData.name || 'Esperando órdenes...',
+        progress: taskData.progress,
+        started: taskData.started,
+        logs: logs.slice(-8), // Últimos 8 logs
+        lastActivity
+      }
+      
+    } catch (e) {
+      result[agent.id] = { ...agent, status: 'error', task: 'Error leyendo sesión', logs: [e.message], lastActivity: null }
+    }
   }
   
-  return tasks
+  return result
 }
 
-const tasks = getTasks()
-writeFileSync(OUTPUT_FILE, JSON.stringify({ generatedAt: new Date().toISOString(), tasks }, null, 2))
-console.log(`✅ Tareas actualizadas`)
+// Generar
+const data = getAgentData()
+
+writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
+  generatedAt: new Date().toISOString(),
+  agents: data
+}, null, 2))
+
+console.log('✅ Estado de agentes actualizado')

@@ -387,50 +387,30 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-// Hook para cargar métricas y tareas reales
-function useRealMetrics() {
-  const [metrics, setMetrics] = useState(null)
-  const [communications, setCommunications] = useState([])
-  const [tasks, setTasks] = useState(null)
+// Hook para cargar estado completo de agentes
+function useAgentStatus() {
+  const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchStatus() {
       try {
-        // Fetch metrics
-        const metricsRes = await fetch('/metrics.json')
-        if (metricsRes.ok) {
-          const metricsData = await metricsRes.json()
-          setMetrics(metricsData)
-        }
-        
-        // Fetch communications
-        const commRes = await fetch('/communications.json')
-        if (commRes.ok) {
-          const commData = await commRes.json()
-          setCommunications(commData.messages || [])
-        }
-        
-        // Fetch tasks
-        const tasksRes = await fetch('/tasks.json')
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json()
-          setTasks(tasksData.tasks)
+        const res = await fetch('/agent-status.json')
+        if (res.ok) {
+          setStatus(await res.json())
         }
       } catch (e) {
-        console.warn('Using fallback data:', e.message)
-        setError(e.message)
+        console.warn('Error:', e.message)
       } finally {
         setLoading(false)
       }
     }
-    fetchData()
-    const interval = setInterval(fetchData, 5000) // Refresh cada 5 segundos
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 3000) // Refresh cada 3 segundos
     return () => clearInterval(interval)
   }, [])
 
-  return { metrics, communications, tasks, loading, error }
+  return { status, loading }
 }
 
 function AgentCard({ agent, isSelected, onClick, metrics }) {
@@ -513,77 +493,100 @@ function TaskItem({ task, color }) {
   )
 }
 
-function AgentDetail({ agent, realTasks = null }) {
-  const [tasks, setTasks] = useState([])
+// Terminal-style Log Entry
+function LogEntry({ log, color }) {
+  const isUser = log.type === 'user'
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`flex gap-2 text-xs py-1 border-b border-white/5`}
+    >
+      <span className="text-gray-500 font-mono">{log.time}</span>
+      <span className={isUser ? 'text-retro-yellow' : 'text-retro-green'}>
+        {isUser ? '↦' : '↤'}
+      </span>
+      <span className="text-gray-300 truncate flex-1">{log.text}</span>
+    </motion.div>
+  )
+}
+
+// Agent Detail with Terminal Logs
+function AgentDetail({ agent, agentData }) {
+  const data = agentData?.[agent.id] || {}
+  const logs = data.logs || []
   
-  useEffect(() => {
-    // Si hay tareas reales para este agente, usarlas
-    if (realTasks && realTasks[agent.id]?.length > 0) {
-      setTasks(realTasks[agent.id])
-    } else {
-      // Generar placeholder solo si no hay datos reales
-      const placeholders = {
-        'er-hineda': [{ name: 'Esperando órdenes de Samuel...', status: 'idle', progress: 0 }],
-        'netops': [{ name: 'Monitoreando servidores', status: 'idle', progress: 0 }],
-        'pr-reviewer': [{ name: 'Esperando PRs para revisar', status: 'idle', progress: 0 }],
-        'coder': [{ name: 'Sin tareas activas', status: 'idle', progress: 0 }]
-      }
-      setTasks(placeholders[agent.id] || [])
-    }
-  }, [agent.id, realTasks])
+  const statusColors = {
+    'running': 'text-retro-green animate-pulse',
+    'active': 'text-retro-cyan', 
+    'idle': 'text-gray-500',
+    'offline': 'text-retro-red',
+    'error': 'text-retro-red'
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="bg-black/60 rounded-lg border-2 p-6"
+      className="bg-black/60 rounded-lg border-2 overflow-hidden"
       style={{ borderColor: agent.glowColor }}
     >
-      <div className="flex items-center gap-4 mb-6">
-        <PixelCreature type={agent.id} size={80} />
-        <div>
-          <h2 className={`text-2xl font-bold ${agent.color}`}>{agent.name}</h2>
-          <p className="text-gray-400">{agent.role}</p>
-          <span className={`text-sm font-mono ${statusLabels[agent.status].color}`}>
-            {statusLabels[agent.status].text}
-          </span>
+      {/* Header */}
+      <div className="p-4 border-b border-white/10" style={{ backgroundColor: `${agent.glowColor}15` }}>
+        <div className="flex items-center gap-4">
+          <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
+              <span className={`text-xs px-2 py-0.5 rounded ${data.status === 'running' ? 'bg-retro-green/20 text-retro-green' : 'bg-white/10 text-gray-400'}`}>
+                ● {data.status?.toUpperCase() || 'OFFLINE'}
+              </span>
+            </div>
+            <p className="text-sm text-gray-400 mt-1">{data.task || 'Sin actividad'}</p>
+          </div>
+          {/* Progress ring */}
+          <div className="relative w-16 h-16">
+            <svg className="w-16 h-16 -rotate-90">
+              <circle cx="32" cy="32" r="28" stroke="white/10" strokeWidth="4" fill="none" />
+              <circle 
+                cx="32" cy="32" r="28" 
+                stroke={agent.glowColor} 
+                strokeWidth="4" 
+                fill="none"
+                strokeDasharray={`${(data.progress || 0) * 1.76} 176`}
+                className="transition-all duration-500"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: agent.glowColor }}>
+              {data.progress || 0}%
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white/5 rounded p-3 text-center">
-          <div className="text-2xl font-bold" style={{ color: agent.glowColor }}>{agent.stats.completed}</div>
-          <div className="text-xs text-gray-500">COMPLETADAS</div>
+      {/* Terminal Logs */}
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Terminal size={14} className="text-retro-green" />
+          <span className="text-xs text-gray-500 font-mono">TERMINAL LOG</span>
+          <span className="text-xs text-gray-600">({logs.length} entries)</span>
         </div>
-        <div className="bg-white/5 rounded p-3 text-center">
-          <div className="text-2xl font-bold" style={{ color: agent.glowColor }}>{agent.stats.active}</div>
-          <div className="text-xs text-gray-500">ACTIVAS</div>
+        
+        <div className="bg-black/80 rounded-lg border border-white/10 p-3 h-48 overflow-y-auto font-mono text-xs">
+          {logs.length === 0 ? (
+            <div className="text-gray-600 italic">No hay logs disponibles</div>
+          ) : (
+            logs.map((log, i) => (
+              <LogEntry key={i} log={log} color={agent.glowColor} />
+            ))
+          )}
         </div>
-      </div>
-
-      <h4 className="text-xs text-gray-500 mb-3 flex items-center gap-2">
-        <Folder size={12} />
-        TAREAS EN PROGRESO
-      </h4>
-      
-      <div className="space-y-2">
-        <AnimatePresence>
-          {tasks.filter(t => t.status !== 'completed').map(task => (
-            <TaskItem key={task.id} task={task} color={agent.glowColor} />
-          ))}
-        </AnimatePresence>
-      </div>
-
-      <h4 className="text-xs text-gray-500 mt-6 mb-3 flex items-center gap-2">
-        <Sparkles size={12} />
-        SKILLS
-      </h4>
-      <div className="flex flex-wrap gap-2">
-        {agent.skills.map(skill => (
-          <span key={skill} className="px-2 py-1 text-xs bg-white/10 rounded border border-white/20">
-            {skill}
-          </span>
-        ))}
+        
+        {data.started && (
+          <div className="mt-3 text-xs text-gray-500">
+            Iniciado: <span className="text-retro-cyan font-mono">{data.started}</span>
+          </div>
+        )}
       </div>
     </motion.div>
   )
@@ -593,7 +596,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const { metrics, communications, tasks, loading: metricsLoading } = useRealMetrics()
+  const { status: agentStatus, loading: statusLoading } = useAgentStatus()
   
   // Mensajes: primero los reales del backend, luego fallback simulado
   const [agentMessages, setAgentMessages] = useState([])
@@ -694,7 +697,7 @@ function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <AgentDetail agent={selectedAgent} realTasks={tasks} />
+            <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} />
           </div>
           
           <div className="space-y-4">
