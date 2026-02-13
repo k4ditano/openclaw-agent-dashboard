@@ -1,21 +1,96 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon } from 'lucide-react'
 
-// Simple hash function for password verification
-const hashPassword = (password) => {
-  let hash = 0
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
+// =============================================================================
+// THEME CONTEXT - Dark/Light Theme
+// =============================================================================
+
+const ThemeContext = createContext(null)
+
+function useTheme() {
+  const context = useContext(ThemeContext)
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider')
   }
-  return hash.toString(16)
+  return context
 }
 
+function ThemeProvider({ children }) {
+  const [isDark, setIsDark] = useState(() => {
+    // Check localStorage or default to dark
+    const saved = localStorage.getItem('theme')
+    if (saved) return saved === 'dark'
+    return true // Default to dark
+  })
+
+  useEffect(() => {
+    localStorage.setItem('theme', isDark ? 'dark' : 'light')
+    // Update document class for Tailwind dark mode
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDark])
+
+  const toggleTheme = () => setIsDark(prev => !prev)
+
+  return (
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  )
+}
+
+// Theme toggle button component
+function ThemeToggle({ className = '' }) {
+  const { isDark, toggleTheme } = useTheme()
+  
+  return (
+    <button
+      onClick={toggleTheme}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${className}`}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      <motion.div
+        initial={false}
+        animate={{ rotate: isDark ? 0 : 180 }}
+        transition={{ duration: 0.3 }}
+      >
+        {isDark ? <Moon size={18} className="text-retro-yellow" /> : <Sun size={18} className="text-retro-orange" />}
+      </motion.div>
+      <span className="text-sm text-gray-400 hidden sm:inline">
+        {isDark ? 'Oscuro' : 'Claro'}
+      </span>
+    </button>
+  )
+}
+
+// =============================================================================
+// AUTH CONTEXT - JWT Authentication
+// =============================================================================
+
+const AuthContext = createContext(null)
+
+// Hook para acceder al token
+function useAuth() {
+  return useContext(AuthContext)
+}
+
+// Credenciales para login (solo se usan para solicitar token, no para verificar localmente)
 const CREDENTIALS = {
   username: 'ErHinedaAgents',
-  passwordHash: hashPassword('qubgos-9cehpe-caggEz')
+  password: 'qubgos-9cehpe-caggEz'
+}
+
+// Función para hacer requests autenticadas
+async function authFetch(url, token, options = {}) {
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`
+  }
+  return fetch(url, { ...options, headers })
 }
 
 // Pixel art creatures - Enhanced version with unique avatars
@@ -161,23 +236,23 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
   const [autoScroll, setAutoScroll] = useState(true)
   
   return (
-    <div className="bg-black/80 rounded-lg border border-white/20 overflow-hidden font-mono text-xs">
+    <div className="bg-gray-100 dark:bg-black/80 rounded-lg border border-gray-600 dark:border-white/20 overflow-hidden font-mono text-xs">
       {/* Header */}
-      <div className="bg-white/10 px-3 py-2 flex items-center justify-between border-b border-white/10">
+      <div className="bg-gray-300 dark:bg-white/10 px-3 py-2 flex items-center justify-between border-b border-gray-400 dark:border-white/10">
         <div className="flex items-center gap-2">
           <Terminal size={14} className="text-retro-green" />
           <span className="text-retro-green">AGENT COMM LINK</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-gray-500">● LIVE</span>
+          <span className="text-gray-600 dark:text-gray-500">● LIVE</span>
         </div>
       </div>
       
       {/* Messages */}
-      <div className="h-48 overflow-y-auto p-2 space-y-1">
+      <div className="h-48 overflow-y-auto p-2 space-y-1 bg-gray-50 dark:bg-black/50">
         <AnimatePresence>
           {messages.length === 0 ? (
-            <div className="text-gray-600 italic">Esperando mensajes entre agentes...</div>
+            <div className="text-gray-500 dark:text-gray-600 italic">Esperando mensajes entre agentes...</div>
           ) : (
             messages.map((msg, i) => (
               <motion.div
@@ -194,11 +269,11 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-retro-cyan font-bold">{msg.from.toUpperCase()}</span>
-                    <span className="text-gray-600">→</span>
+                    <span className="text-gray-500 dark:text-gray-600">→</span>
                     <span className="text-retro-pink font-bold">{msg.to.toUpperCase()}</span>
-                    <span className="text-gray-600 text-[10px]">{msg.time}</span>
+                    <span className="text-gray-500 dark:text-gray-600 text-[10px]">{msg.time}</span>
                   </div>
-                  <div className="text-gray-300 truncate">{msg.content}</div>
+                  <div className="text-gray-700 dark:text-gray-300 truncate">{msg.content}</div>
                 </div>
                 
                 {/* Arrow animation */}
@@ -216,8 +291,8 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
       </div>
       
       {/* Input模拟 */}
-      <div className="bg-white/5 px-3 py-2 border-t border-white/10">
-        <div className="flex items-center gap-2 text-gray-500">
+      <div className="bg-white dark:bg-white/5 px-3 py-2 border-t border-gray-300 dark:border-white/10">
+        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-600">
           <span className="text-retro-green">$</span>
           <span className="italic">conexión segura activa...</span>
         </div>
@@ -325,27 +400,45 @@ function LoginScreen({ onLogin }) {
     e.preventDefault()
     setLoading(true)
     setLocalError('')
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const hashedInput = hashPassword(password)
-    if (username === CREDENTIALS.username && hashedInput === CREDENTIALS.passwordHash) {
+    
+    try {
+      // Login con JWT real
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error en login')
+      }
+      
+      const data = await res.json()
+      
+      // Guardar token en localStorage
+      localStorage.setItem('jwt_token', data.token)
+      localStorage.setItem('jwt_expiry', Date.now() + (24 * 60 * 60 * 1000)) // 24 horas
+      
       onLogin()
-    } else {
-      setLocalError('Credenciales inválidas')
+    } catch (err) {
+      setLocalError(err.message || 'Credenciales inválidas')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="min-h-screen bg-gray-100 dark:bg-black flex items-center justify-center">
       <div className="w-full max-w-md p-8">
-        <div className="bg-black/80 border-2 border-retro-purple rounded-lg p-8">
+        <div className="bg-white dark:bg-black border-2 border-retro-purple rounded-lg p-8">
           <div className="text-center mb-8">
             <div className="inline-block mb-4">
               <Lock className="text-retro-purple" size={48} />
             </div>
-            <h1 className="text-xl font-bold text-white font-display">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white font-display">
               AGENT DASHBOARD
             </h1>
+            <p className="text-xs text-gray-500 mt-2">JWT Authentication</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -354,7 +447,7 @@ function LoginScreen({ onLogin }) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-gray-900 border border-white/20 rounded-lg px-4 py-3 text-white font-mono"
+                className="w-full bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-white/20 rounded-lg px-4 py-3 text-gray-900 dark:text-white font-mono"
                 placeholder="USUARIO"
               />
             </div>
@@ -363,7 +456,7 @@ function LoginScreen({ onLogin }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-900 border border-white/20 rounded-lg px-4 py-3 text-white font-mono pr-12"
+                className="w-full bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-white/20 rounded-lg px-4 py-3 text-gray-900 dark:text-white font-mono pr-12"
                 placeholder="PASSWORD"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -386,46 +479,111 @@ function useAgentStatus() {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [connected, setConnected] = useState(false)
+  const eventSourceRef = useRef(null)
 
   useEffect(() => {
-    async function fetchStatus() {
+    const token = localStorage.getItem('jwt_token')
+    
+    // Si no hay token, intentar con fallback
+    if (!token) {
+      setLoading(false)
+      return
+    }
+
+    // Función para obtener datos iniciales
+    async function fetchInitialStatus() {
       try {
-        // Usar URL relativa para funcionar con el mismo dominio/puerto
-        let apiUrl = '/api/metrics/agent-status'
-        let res = await fetch(apiUrl, { timeout: 5000 })
-        
-        if (!res.ok) {
-          // Fallback al archivo estático si el server no está corriendo
-          console.warn('API no disponible, usando archivo estático...')
-          apiUrl = '/agent-status.json'
-          res = await fetch(apiUrl)
-        }
+        const res = await fetch('/api/metrics/agent-status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
         
         if (res.ok) {
           setStatus(await res.json())
           setError(null)
+        } else if (res.status === 401 || res.status === 403) {
+          // Token expirado, limpiar
+          localStorage.removeItem('jwt_token')
+          localStorage.removeItem('jwt_expiry')
+          setError('Sesión expirada')
         }
       } catch (e) {
-        console.warn('Error fetching status:', e.message)
-        // Último fallback: intentar archivo estático
+        console.warn('Error fetching initial status:', e.message)
+        // Fallback a archivo estático
         try {
           const staticRes = await fetch('/agent-status.json')
           if (staticRes.ok) {
             setStatus(await staticRes.json())
           }
-        } catch (staticErr) {
-          setError(staticErr.message)
-        }
+        } catch {}
       } finally {
         setLoading(false)
       }
     }
-    fetchStatus()
-    const interval = setInterval(fetchStatus, 10000) // Refresh cada 10 segundos
-    return () => clearInterval(interval)
+
+    // Conectar a SSE para tiempo real
+    function connectSSE() {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+
+      const eventSource = new EventSource(`/api/events?token=${token}`)
+      eventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        console.log('📡 SSE conectado')
+        setConnected(true)
+        setError(null)
+      }
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          
+          if (data.type === 'connected') {
+            console.log('📡 Evento de conexión recibido')
+          } else if (data.type === 'update') {
+            // Actualizar estado con datos de SSE
+            setStatus({
+              generatedAt: data.timestamp,
+              agents: data.agents,
+              communications: data.communications,
+              metrics: data.metrics
+            })
+          } else if (data.type === 'error') {
+            console.warn('SSE error:', data.error)
+            setError(data.error)
+          }
+        } catch (e) {
+          console.error('Error parsing SSE data:', e)
+        }
+      }
+
+      eventSource.onerror = (err) => {
+        console.warn('SSE error, reconectando...', err)
+        setConnected(false)
+        eventSource.close()
+        
+        // Reintentar conexión en 5 segundos
+        setTimeout(connectSSE, 5000)
+      }
+    }
+
+    // Cargar datos iniciales
+    fetchInitialStatus()
+    
+    // Conectar SSE
+    connectSSE()
+
+    // Cleanup al desmontar
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+    }
   }, [])
 
-  return { status, loading, error }
+  return { status, loading, error, connected }
 }
 
 function AgentCard({ agent, isSelected, onClick, agentData }) {
@@ -455,8 +613,8 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
       onClick={onClick}
       className={`
         relative p-4 rounded-lg cursor-pointer transition-all
-        bg-black/50 border-2 ${agent.borderColor}
-        ${isSelected ? 'ring-2 ring-offset-2 ring-offset-black' : ''}
+        bg-white/50 dark:bg-black/50 border-2 ${agent.borderColor}
+        ${isSelected ? 'ring-2 ring-offset-2 ring-offset-gray-100 dark:ring-offset-black' : ''}
         ${data.status === 'error' ? 'border-retro-red' : ''}
       `}
       style={{ 
@@ -492,15 +650,15 @@ function TaskItem({ task, color }) {
   }
   
   return (
-    <div className="bg-white/5 rounded-lg p-3 mb-2">
+    <div className="bg-gray-100/50 dark:bg-white/5 rounded-lg p-3 mb-2">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span style={{ color }}>{statusIcons[task.status]}</span>
-          <span className="text-sm text-white">{task.name}</span>
+          <span className="text-sm text-gray-900 dark:text-white">{task.name}</span>
         </div>
         <span className="text-xs" style={{ color }}>{task.progress}%</span>
       </div>
-      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+      <div className="h-1 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
         <motion.div 
           initial={{ width: 0 }}
           animate={{ width: `${task.progress}%` }}
@@ -521,13 +679,13 @@ function LogEntry({ log, color, highlight }) {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`flex gap-2 text-xs py-1 border-b border-white/5 hover:bg-white/5 ${highlightMatch ? 'bg-retro-yellow/10' : ''}`}
+      className={`flex gap-2 text-xs py-1 border-b border-gray-200 dark:border-white/5 hover:bg-gray-200 dark:hover:bg-white/5 ${highlightMatch ? 'bg-retro-yellow/10' : ''}`}
     >
-      <span className="text-gray-600 font-mono min-w-[60px]">{log.time}</span>
+      <span className="text-gray-500 dark:text-gray-600 font-mono min-w-[60px]">{log.time}</span>
       <span className={isUser ? 'text-retro-yellow' : 'text-retro-green'}>
         {isUser ? '↦' : '↤'}
       </span>
-      <span className="text-gray-300 break-all">
+      <span className="text-gray-800 dark:text-gray-300 break-all">
         {highlightMatch ? (
           <HighlightText text={log.text} query={highlight} />
         ) : log.text}
@@ -556,14 +714,14 @@ function HighlightText({ text, query }) {
 // 1. LOG SEARCH - Input para filtrar logs por texto
 function LogSearch({ searchTerm, onSearchChange, resultsCount, totalCount }) {
   return (
-    <div className="flex items-center gap-3 bg-black/60 border border-white/10 rounded-lg px-3 py-2">
+    <div className="flex items-center gap-3 bg-white dark:bg-black/60 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2">
       <Search size={16} className="text-retro-cyan" />
       <input
         type="text"
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Buscar en logs..."
-        className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+        className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none"
       />
       {searchTerm && (
         <span className="text-xs text-gray-500">
@@ -573,7 +731,7 @@ function LogSearch({ searchTerm, onSearchChange, resultsCount, totalCount }) {
       {searchTerm && (
         <button 
           onClick={() => onSearchChange('')}
-          className="text-gray-500 hover:text-white transition-colors"
+          className="text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors"
         >
           <X size={14} />
         </button>
@@ -607,7 +765,7 @@ function TaskTimeline({ agent, agentData, color }) {
   }
   
   return (
-    <div className="bg-black/60 rounded-lg border border-white/10 p-4">
+    <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-gray-200 dark:border-white/10 p-4">
       <div className="flex items-center gap-2 mb-4">
         <History size={16} style={{ color }} />
         <span className="text-sm font-bold" style={{ color }}>TIMELINE DE TAREAS</span>
@@ -654,7 +812,71 @@ function TaskTimeline({ agent, agentData, color }) {
 
 // 3. ACTIVITY CHARTS - Gráficos de uso de tokens y actividad por hora
 function ActivityCharts({ agentStatus }) {
+  const [hourlyActivity, setHourlyActivity] = useState([])
   const agentsData = agentStatus?.agents || {}
+  
+  // Obtener token para usar como dependencia del useEffect
+  const [token, setToken] = useState(() => localStorage.getItem('jwt_token'))
+  
+  // Actualizar token cuando cambie el estado de autenticación
+  useEffect(() => {
+    const checkToken = () => {
+      const newToken = localStorage.getItem('jwt_token')
+      if (newToken !== token) {
+        setToken(newToken)
+      }
+    }
+    // Verificar token inmediatamente y cada segundo
+    checkToken()
+    const interval = setInterval(checkToken, 1000)
+    return () => clearInterval(interval)
+  }, [token])
+  
+  // Cargar datos reales de actividad por hora desde el API
+  useEffect(() => {
+    async function fetchHourlyActivity() {
+      // Always try to get token fresh from localStorage
+      let currentToken = localStorage.getItem('jwt_token')
+      
+      // If no token in localStorage, try to get from storage event (other tab)
+      if (!currentToken) {
+        try {
+          const stored = localStorage.getItem('jwt_token')
+          currentToken = stored
+        } catch(e) {}
+      }
+      
+      if (!currentToken) {
+        console.log('No token available for activity fetch')
+        return
+      }
+      
+      try {
+        const res = await fetch('/api/metrics/activity', {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          console.log('Activity data received:', data.hourly?.length, 'hours')
+          setHourlyActivity(data.hourly || [])
+        } else {
+          console.warn('Activity fetch error:', res.status)
+        }
+      } catch (e) {
+        console.warn('Error fetching hourly activity:', e.message)
+      }
+    }
+    
+    // Fetch after a short delay to ensure login completes
+    setTimeout(fetchHourlyActivity, 1000)
+    
+    // Also try to fetch immediately 
+    fetchHourlyActivity()
+    
+    // Refresh cada 10 segundos
+    const interval = setInterval(fetchHourlyActivity, 10000)
+    return () => clearInterval(interval)
+  }, [])
   
   // Calcular tokens por agente
   const tokenData = useMemo(() => {
@@ -667,27 +889,25 @@ function ActivityCharts({ agentStatus }) {
     })).filter(d => d.total > 0)
   }, [agentsData])
   
-  // Calcular actividad por hora (simulado basado en datos)
-  const hourlyActivity = useMemo(() => {
-    const hours = []
-    const now = new Date()
-    for (let i = 11; i >= 0; i--) {
-      const hour = new Date(now.getTime() - i * 3600000)
-      hours.push({
-        hour: hour.getHours().toString().padStart(2, '0') + ':00',
-        activity: Math.floor(Math.random() * 100)
-      })
+  // Usar datos reales si existen, si no generar fallback con ceros (no aleatorio)
+  const displayHourlyActivity = hourlyActivity.length > 0 ? hourlyActivity : Array.from({ length: 12 }, (_, i) => {
+    const hour = new Date()
+    hour.setHours(hour.getHours() - (11 - i))
+    return {
+      hour: hour.getHours().toString().padStart(2, '0') + ':00',
+      activity: 0,
+      input: 0,
+      output: 0
     }
-    return hours
-  }, [])
+  })
   
   const maxToken = Math.max(...tokenData.map(d => d.total), 1)
-  const maxActivity = Math.max(...hourlyActivity.map(h => h.activity), 1)
+  const maxActivity = Math.max(...displayHourlyActivity.map(h => h.activity), 1)
   
   return (
     <div className="space-y-4">
       {/* Token Usage Chart */}
-      <div className="bg-black/60 rounded-lg border border-retro-purple p-4">
+      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-purple p-4">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 size={16} className="text-retro-purple" />
           <span className="text-sm font-bold text-retro-purple">USO DE TOKENS</span>
@@ -735,42 +955,40 @@ function ActivityCharts({ agentStatus }) {
         </div>
       </div>
       
-      {/* Hourly Activity Chart */}
-      <div className="bg-black/60 rounded-lg border border-retro-cyan p-4">
+      {/* Hourly Activity Chart - DATOS REALES */}
+      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-cyan p-4">
         <div className="flex items-center gap-2 mb-4">
           <Activity size={16} className="text-retro-cyan" />
           <span className="text-sm font-bold text-retro-cyan">ACTIVIDAD POR HORA</span>
         </div>
         
-        {/* Bar Chart */}
+        {/* SIMPLE Bar Chart - min 3px height */}
         <div className="flex items-end gap-1 h-20">
-          {hourlyActivity.map((hour, i) => (
-            <motion.div
-              key={hour.hour}
-              className="flex-1 flex flex-col items-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: i * 0.03 }}
-            >
-              <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: `${(hour.activity / maxActivity) * 100}%` }}
-                transition={{ duration: 0.3, delay: i * 0.03 }}
-                className="w-full rounded-t"
-                style={{ 
-                  backgroundColor: i === hourlyActivity.length - 1 ? '#22c55e' : '#06b6d4',
-                  opacity: 0.3 + (hour.activity / maxActivity) * 0.7
-                }}
-              />
-            </motion.div>
-          ))}
+          {displayHourlyActivity.map((hour, i) => {
+            const pct = maxActivity > 0 ? Math.round((hour.activity / maxActivity) * 100) : 0
+            const minHeight = 3 // minimum 3px
+            const heightPx = Math.max(Math.round(pct * 0.8), minHeight) // 80px * 1% = 0.8px
+            return (
+              <div key={hour.hour} className="flex-1 flex flex-col items-center">
+                <div
+                  className="w-full rounded-t"
+                  style={{ 
+                    height: `${heightPx}px`,
+                    backgroundColor: '#06b6d4',
+                    minWidth: '8px'
+                  }}
+                  title={`${hour.hour}: ${hour.activity} acts`}
+                />
+              </div>
+            )
+          })}
         </div>
         
         {/* X-axis labels */}
         <div className="flex justify-between mt-2">
-          <span className="text-[8px] text-gray-600">{hourlyActivity[0]?.hour}</span>
-          <span className="text-[8px] text-gray-600">{hourlyActivity[Math.floor(hourlyActivity.length/2)]?.hour}</span>
-          <span className="text-[8px] text-gray-600">{hourlyActivity[hourlyActivity.length-1]?.hour}</span>
+          <span className="text-[8px] text-gray-600">{displayHourlyActivity[0]?.hour}</span>
+          <span className="text-[8px] text-gray-600">{displayHourlyActivity[Math.floor(displayHourlyActivity.length/2)]?.hour}</span>
+          <span className="text-[8px] text-gray-600">{displayHourlyActivity[displayHourlyActivity.length-1]?.hour}</span>
         </div>
       </div>
     </div>
@@ -821,7 +1039,7 @@ function ErrorNotifications({ agentsData, onAgentClick }) {
                     <X size={14} />
                   </button>
                 </div>
-                <p className="text-white text-xs mt-1">{error.name || error.id}</p>
+                <p className="text-gray-800 dark:text-white text-xs mt-1">{error.name || error.id}</p>
                 <p className="text-gray-400 text-xs mt-1 truncate">{error.task || 'Error desconocido'}</p>
                 <button 
                   onClick={() => {
@@ -884,7 +1102,7 @@ function ExportLogs({ agent, logs, color }) {
     <div className="relative">
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
+        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors bg-white/5 dark:hover:bg-white/10 px-2 py-1 rounded"
       >
         <Download size={12} />
         Exportar
@@ -896,18 +1114,18 @@ function ExportLogs({ agent, logs, color }) {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute right-0 top-full mt-1 bg-black border border-white/20 rounded-lg shadow-xl overflow-hidden z-10"
+            className="absolute right-0 top-full mt-1 bg-white dark:bg-black border border-gray-200 dark:border-white/20 rounded-lg shadow-xl overflow-hidden z-10"
           >
             <button
               onClick={exportAsJSON}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
             >
               <FileJson size={14} className="text-retro-yellow" />
               Exportar como JSON
             </button>
             <button
               onClick={exportAsTXT}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/10"
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
             >
               <FileText size={14} className="text-retro-cyan" />
               Exportar como TXT
@@ -944,7 +1162,7 @@ function LogModal({ agent, logs, onClose }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-100/90 dark:bg-black/90"
       onClick={onClose}
     >
       <motion.div
@@ -952,12 +1170,12 @@ function LogModal({ agent, logs, onClose }) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         ref={modalRef}
-        className="bg-black border-2 rounded-xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white dark:bg-black border-2 rounded-xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col"
         style={{ borderColor: agent.glowColor }}
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between" style={{ backgroundColor: `${agent.glowColor}15` }}>
+        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between" style={{ backgroundColor: `${agent.glowColor}15` }}>
           <div className="flex items-center gap-3">
             <PixelCreature type={agent.id} size={48} />
             <div>
@@ -969,14 +1187,14 @@ function LogModal({ agent, logs, onClose }) {
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors"
           >
             <X size={24} className="text-gray-400" />
           </button>
         </div>
         
         {/* Search & Export Bar (FASE 2) */}
-        <div className="px-4 py-3 border-b border-white/10 bg-black/30 flex items-center gap-3">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/30 flex items-center gap-3">
           <LogSearch 
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
@@ -987,7 +1205,7 @@ function LogModal({ agent, logs, onClose }) {
         </div>
         
         {/* Modal Content */}
-        <div className="flex-1 overflow-y-auto p-4 bg-black/50 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-black/50 custom-scrollbar">
           <div className="font-mono text-sm">
             <AnimatePresence>
               {filteredLogs.length === 0 ? (
@@ -1049,11 +1267,11 @@ function AgentDetail({ agent, agentData }) {
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        className="bg-black/60 rounded-lg border-2 overflow-hidden"
+        className="bg-white/60 dark:bg-black/60 rounded-lg border-2 overflow-hidden"
         style={{ borderColor: data.status === 'error' ? '#ef4444' : agent.glowColor }}
       >
         {/* Header */}
-        <div className="p-4 border-b border-white/10" style={{ backgroundColor: `${data.status === 'error' ? '#ef444415' : agent.glowColor}15` }}>
+        <div className="p-4 border-b border-gray-200 dark:border-white/10" style={{ backgroundColor: `${data.status === 'error' ? '#ef444415' : agent.glowColor}15` }}>
           <div className="flex items-center gap-4">
             <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
             <div className="flex-1">
@@ -1105,7 +1323,7 @@ function AgentDetail({ agent, agentData }) {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Filtrar..."
-                      className="w-24 bg-black/50 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-retro-cyan"
+                      className="w-24 bg-white dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-retro-cyan"
                     />
                     {searchTerm && (
                       <button 
@@ -1129,7 +1347,7 @@ function AgentDetail({ agent, agentData }) {
             </div>
           </div>
           
-          <div className="bg-black/90 rounded-lg border border-white/10 p-3 h-64 overflow-y-auto font-mono text-xs custom-scrollbar">
+          <div className="bg-gray-100 dark:bg-black/90 rounded-lg border border-gray-300 dark:border-white/10 p-3 h-64 overflow-y-auto font-mono text-xs">
             {logs.length === 0 ? (
               <div className="text-gray-600 italic">Esperando logs...</div>
             ) : filteredLogs.length === 0 ? (
@@ -1182,8 +1400,17 @@ function App() {
   const [talkingAgent, setTalkingAgent] = useState(null)
 
   useEffect(() => {
-    const session = sessionStorage.getItem('agent-dashboard-session')
-    if (session) setIsAuthenticated(true)
+    // Verificar token JWT al inicio
+    const token = localStorage.getItem('jwt_token')
+    const expiry = localStorage.getItem('jwt_expiry')
+    
+    if (token && expiry && Date.now() < parseInt(expiry)) {
+      setIsAuthenticated(true)
+    } else if (token) {
+      // Token existe pero expiró
+      localStorage.removeItem('jwt_token')
+      localStorage.removeItem('jwt_expiry')
+    }
   }, [])
 
   useEffect(() => {
@@ -1224,12 +1451,13 @@ function App() {
   }, [agentMessages.length, agentStatus?.communications])
 
   const handleLogin = () => {
-    sessionStorage.setItem('agent-dashboard-session', Date.now().toString())
+    // El token ya se guarda en LoginScreen
     setIsAuthenticated(true)
   }
 
   const handleLogout = () => {
-    sessionStorage.removeItem('agent-dashboard-session')
+    localStorage.removeItem('jwt_token')
+    localStorage.removeItem('jwt_expiry')
     setIsAuthenticated(false)
   }
 
@@ -1246,23 +1474,24 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white">
       {/* Error Notifications (FASE 2) */}
       <ErrorNotifications 
         agentsData={agentStatus?.agents} 
         onAgentClick={handleErrorAgentClick}
       />
       
-      <header className="border-b border-white/10 bg-black/80">
+      <header className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/80">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Cpu className="text-retro-purple" size={32} />
             <div>
-              <h1 className="text-lg font-bold text-white font-display">AGENT DASHBOARD</h1>
-              <p className="text-xs text-gray-500">er Hineda & Co.</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white font-display">AGENT DASHBOARD</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-500">er Hineda & Co.</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <ThemeToggle className="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10" />
             <div className="text-right">
               <div className="text-xs text-gray-500">HORA</div>
               <div className="font-mono text-retro-cyan">{currentTime.toLocaleTimeString()}</div>
@@ -1299,7 +1528,7 @@ function App() {
             />
 
             {/* Estado del sistema */}
-            <div className="bg-black/60 rounded-lg border-2 border-retro-pink p-4">
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-pink p-4">
               <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
                 <Activity size={16} />
                 ESTADO DEL SISTEMA
@@ -1320,7 +1549,7 @@ function App() {
             </div>
 
             {/* Métricas de Tokens */}
-            <div className="bg-black/60 rounded-lg border-2 border-retro-purple p-4">
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-purple p-4">
               <h3 className="text-retro-purple font-mono text-sm mb-3 flex items-center gap-2">
                 <Zap size={16} />
                 MÉTRICAS DE TOKENS
@@ -1352,4 +1581,26 @@ function App() {
   )
 }
 
-export default App
+// Wrap App with ThemeProvider
+function AppWithProvider() {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  )
+}
+
+// Export named components for testing
+export { 
+  ThemeProvider, 
+  useTheme, 
+  ThemeToggle, 
+  PixelCreature,
+  AgentCard,
+  LoginScreen,
+  generateTasks,
+  agents,
+  statusLabels
+}
+
+export default AppWithProvider
