@@ -1,5 +1,5 @@
 /**
- * Monitor de agentes - solo mensajes útiles cada 15 segundos
+ * Monitor de agentes - muestra subagentes en tiempo real
  */
 
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'fs'
@@ -8,22 +8,21 @@ import { join } from 'path'
 const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
 const OUTPUT_DIR = '/home/ubuntu/.openclaw/workspace/agents-dashboard/public'
 
+// Mapeo de agentes
 const agents = {
-  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', dir: 'coder' },
-  'coder': { id: 'coder', name: 'er Codi', emoji: '🤖', color: '#8b5cf6', dir: 'none' },
-  'netops': { id: 'netops', name: 'er Serve', emoji: '🌐', color: '#06b6d4', dir: 'netops' },
-  'pr-reviewer': { id: 'pr-reviewer', name: 'er PR', emoji: '🔍', color: '#22c55e', dir: 'pr-reviewer' }
+  'er-hineda': { name: 'er Hineda', emoji: '🧉', color: '#ec4899', sessionIndex: 0 },
+  'er-coder': { name: 'er Codi', emoji: '🤖', color: '#8b5cf6', sessionIndex: 1 },
+  'er-serve': { name: 'er Serve', emoji: '🌐', color: '#06b6d4', sessionIndex: 2 },
+  'er-pr': { name: 'er PR', emoji: '🔍', color: '#22c55e', sessionIndex: 3 }
 }
 
-// Solo mensajes útiles
 function isUsefulLog(text) {
-  // Ignorar mensajes del sistema
   if (text.includes('Command still running') || text.includes('signal SIGTERM')) return false
   if (text.includes('Exec completed') || text.includes('Exec failed')) return false
   if (text.includes('vite v') || text.includes('vite ready')) return false
   if (text.includes('transforming') || text.includes('built in')) return false
-  if (text.includes('npm run')) return false
-  if (text.includes('Use process') || text.includes('sessionId')) return false
+  if (text.includes('npm run') || text.includes('Use process')) return false
+  if (text.includes('sessionId')) return false
   if (text.includes('Error:') || text.includes('Exception')) return false
   if (text.includes('$$') || text.includes('>>') || text.includes('## ')) return false
   if (text.length < 10) return false
@@ -34,109 +33,110 @@ function cleanText(text) {
   return text.replace(/\[.*?\]\s*/g, '').replace(/`/g, '').trim().substring(0, 100)
 }
 
-function processAgent(dirName, agent) {
-  // Si dir es 'none', mostrar offline
-  if (agent.dir === 'none') {
-    return { ...agent, status: 'offline', task: 'Sin sesiones propias', progress: 0, logs: [] }
-  }
+function getSessionsFromFolder(folder) {
+  const dir = join(AGENTS_DIR, folder, 'sessions')
   
-  // Usar carpeta del agente o la definida
-  const sessionDir = agent.dir || dirName
-  const dir = join(AGENTS_DIR, sessionDir, 'sessions')
+  if (!existsSync(dir)) return []
   
-  if (!existsSync(dir)) {
-    return { ...agent, status: 'offline', task: 'Sin carpeta', progress: 0, logs: [] }
-  }
-  
-  let files = []
   try {
-    files = readdirSync(dir).filter(f => f.endsWith('.jsonl'))
+    const files = readdirSync(dir).filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+    return files.sort((a, b) => 
+      statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime
+    )
   } catch {
-    return { ...agent, status: 'error', task: 'Sin acceso', progress: 0, logs: [] }
+    return []
   }
+}
+
+function processAgentSession(agentId, agent) {
+  // er-hineda y er-coder usan la carpeta coder
+  const folder = 'coder'
+  const sessions = getSessionsFromFolder(folder)
   
-  if (files.length === 0) {
+  if (sessions.length === 0) {
     return { ...agent, status: 'offline', task: 'Sin actividad', progress: 0, logs: [] }
   }
   
-  const sortedFiles = files.sort((a, b) => statSync(join(dir, b)).mtime - statSync(join(dir, a)).mtime).slice(0, 2)
+  // Obtener sesión según índice
+  const sessionIndex = Math.min(agent.sessionIndex, sessions.length - 1)
+  const sessionFile = sessions[sessionIndex]
   
-  const allLines = []
-  for (const f of sortedFiles) {
-    try {
-      const content = readFileSync(join(dir, f), 'utf-8')
-      allLines.push(...content.trim().split('\n').reverse())
-    } catch {}
+  if (!sessionFile) {
+    return { ...agent, status: 'offline', task: 'Sin sesión', progress: 0, logs: [] }
   }
   
-  const now = Date.now()
-  const tenMinsAgo = now - 10 * 60 * 1000
-  const today = new Date().toDateString()
-  
-  const logs = []
-  let currentTask = null
-  let hasToolCalls = false
-  let lastActivity = null
-  
-  for (const line of allLines) {
-    try {
-      const entry = JSON.parse(line)
-      const entryDate = new Date(entry.timestamp).toDateString()
-      const entryTime = new Date(entry.timestamp).getTime()
-      
-      if (entryDate !== today) continue
-      
-      lastActivity = entry.timestamp
-      
-      if (entry.type !== 'message') continue
-      
-      const msg = entry.message
-      if (!msg?.role) continue
-      
-      const rawText = Array.isArray(msg.content) ? msg.content[0]?.text : msg.content
-      if (!rawText || rawText.length < 10) continue
-      
-      const text = cleanText(rawText)
-      if (!isUsefulLog(text)) continue
-      
-      const time = new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false })
-      
-      logs.push({ type: msg.role, text, time })
-      
-      if (msg.role === 'user' && entryTime > tenMinsAgo) {
-        currentTask = text
-      }
-      
-      if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-        if (msg.content.some(c => c.type === 'toolCall')) {
-          hasToolCalls = true
+  try {
+    const content = readFileSync(join(AGENTS_DIR, folder, 'sessions', sessionFile), 'utf-8')
+    const lines = content.trim().split('\n').reverse()
+    
+    const today = new Date().toDateString()
+    const now = Date.now()
+    const tenMinsAgo = now - 10 * 60 * 1000
+    
+    const logs = []
+    let currentTask = null
+    let hasToolCalls = false
+    
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line)
+        const entryDate = new Date(entry.timestamp).toDateString()
+        const entryTime = new Date(entry.timestamp).getTime()
+        
+        if (entryDate !== today) continue
+        if (entry.type !== 'message') continue
+        
+        const msg = entry.message
+        if (!msg?.role) continue
+        
+        const rawText = Array.isArray(msg.content) ? msg.content[0]?.text : msg.content
+        if (!rawText || rawText.length < 10) continue
+        
+        const text = cleanText(rawText)
+        if (!isUsefulLog(text)) continue
+        
+        const time = new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false })
+        
+        logs.push({ type: msg.role, text, time })
+        
+        if (msg.role === 'user' && entryTime > tenMinsAgo) {
+          currentTask = text
         }
-      }
-    } catch {}
-  }
-  
-  if (!currentTask && logs.some(l => l.type === 'user')) {
-    const lastUser = logs.filter(l => l.type === 'user').pop()
-    if (lastUser) currentTask = lastUser.text
-  }
-  
-  const status = hasToolCalls ? 'running' : (logs.length > 0 ? 'active' : 'idle')
-  const progress = hasToolCalls ? Math.min(80, 40 + Math.floor(Math.random() * 30)) : (logs.length > 0 ? 100 : 0)
-  
-  return {
-    ...agent,
-    status,
-    task: currentTask || 'Esperando órdenes...',
-    progress,
-    started: logs[0]?.time || null,
-    logs: logs.slice(0, 15),
-    lastActivity
+        
+        if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+          if (msg.content.some(c => c.type === 'toolCall')) {
+            hasToolCalls = true
+          }
+        }
+      } catch {}
+    }
+    
+    if (!currentTask && logs.some(l => l.type === 'user')) {
+      const lastUser = logs.filter(l => l.type === 'user').pop()
+      if (lastUser) currentTask = lastUser.text
+    }
+    
+    const status = hasToolCalls ? 'running' : (logs.length > 0 ? 'active' : 'idle')
+    const progress = hasToolCalls ? Math.min(80, 40 + Math.floor(Math.random() * 30)) : (logs.length > 0 ? 100 : 0)
+    
+    return {
+      id: agentId,
+      ...agent,
+      status,
+      task: currentTask || 'Esperando órdenes...',
+      progress,
+      started: logs[0]?.time || null,
+      logs: logs.slice(0, 15)
+    }
+    
+  } catch {
+    return { ...agent, status: 'error', task: 'Error leyendo', progress: 0, logs: [] }
   }
 }
 
 const data = {}
-for (const [dirName, agent] of Object.entries(agents)) {
-  data[agent.id] = processAgent(dirName, agent)
+for (const [id, agent] of Object.entries(agents)) {
+  data[id] = processAgentSession(id, agent)
 }
 
 writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
@@ -144,4 +144,4 @@ writeFileSync(join(OUTPUT_DIR, 'agent-status.json'), JSON.stringify({
   agents: data
 }, null, 2))
 
-console.log('✅ Logs actualizados')
+console.log('✅ Estado actualizado')
