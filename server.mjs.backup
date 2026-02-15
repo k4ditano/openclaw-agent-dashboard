@@ -114,15 +114,15 @@ const CACHE_TTL = 10000 // 10 segundos
 import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'fs'
 import { join } from 'path'
 
-const AGENTS_DIR = process.env.AGENTS_DIR || '/home/ubuntu/.openclaw/agents'
+const AGENTS_DIR = '/home/ubuntu/.openclaw/agents'
 
 // 5 agentes - cada uno con su carpeta
 const agentsList = [
-  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', folder: 'main', desc: 'Orquestador principal', image: '/agent-avatars.jpg' },
-  { id: 'er-plan', name: 'er Plan', emoji: '📐', color: '#f59e0b', folder: 'planner', desc: 'Arquitecto y diseñador', image: '/agent-avatars.jpg' },
-  { id: 'er-coder', name: 'er Coder', emoji: '🤖', color: '#8b5cf6', folder: 'coder', desc: 'Especialista en código', image: '/agent-avatars.jpg' },
-  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', folder: 'netops', desc: 'Especialista en redes', image: '/agent-avatars.jpg' },
-  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', folder: 'pr-reviewer', desc: 'Revisor de PRs', image: '/agent-avatars.jpg' }
+  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', folder: 'main', desc: 'Orquestador principal' },
+  { id: 'er-plan', name: 'er Plan', emoji: '📐', color: '#f59e0b', folder: 'planner', desc: 'Arquitecto y diseñador' },
+  { id: 'er-coder', name: 'er Coder', emoji: '🤖', color: '#8b5cf6', folder: 'coder', desc: 'Especialista en código' },
+  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', folder: 'netops', desc: 'Especialista en redes' },
+  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', folder: 'pr-reviewer', desc: 'Revisor de PRs' }
 ]
 
 // Palabras clave que indican ruido de herramientas

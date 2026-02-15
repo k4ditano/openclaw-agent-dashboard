@@ -7,31 +7,34 @@ afterEach(() => {
   cleanup()
 })
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store = {}
-  return {
-    getItem: (key) => store[key] || null,
-    setItem: (key, value) => { store[key] = value },
-    removeItem: (key) => { delete store[key] },
-    clear: () => { store = {} }
-  }
-})()
+// Only run browser-specific mocks in jsdom environment
+if (typeof window !== 'undefined') {
+  // Mock localStorage
+  const localStorageMock = (() => {
+    let store = {}
+    return {
+      getItem: (key) => store[key] || null,
+      setItem: (key, value) => { store[key] = value },
+      removeItem: (key) => { delete store[key] },
+      clear: () => { store = {} }
+    }
+  })()
 
-Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock })
 
-// Mock EventSource for SSE
-class MockEventSource {
-  constructor() {
-    this.readyState = 1
-    this.onopen = null
-    this.onmessage = null
-    this.onerror = null
+  // Mock EventSource for SSE
+  class MockEventSource {
+    constructor() {
+      this.readyState = 1
+      this.onopen = null
+      this.onmessage = null
+      this.onerror = null
+    }
+    close() {}
   }
-  close() {}
+
+  window.EventSource = MockEventSource
+
+  // Mock fetch
+  global.fetch = vi.fn()
 }
-
-window.EventSource = MockEventSource
-
-// Mock fetch
-global.fetch = vi.fn()

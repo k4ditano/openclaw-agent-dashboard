@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare } from 'lucide-react'
 
 // =============================================================================
 // THEME CONTEXT - Dark/Light Theme
@@ -94,7 +94,65 @@ async function authFetch(url, token, options = {}) {
 }
 
 // Pixel art creatures - Enhanced version with unique avatars
-const PixelCreature = ({ type, size = 80, isTalking = false }) => {
+const PixelCreature = ({ type, size = 80, isTalking = false, image }) => {
+  // If image is provided, use it instead of pixel art
+  if (image && !image.includes('agent-avatars')) {
+    // Individual avatar image - just display it
+    return (
+      <div 
+        className="relative rounded-full overflow-hidden"
+        style={{ width: size, height: size }}
+      >
+        <img 
+          src={image} 
+          alt={type}
+          className="w-full h-full object-cover"
+          style={{ borderRadius: '50%' }}
+        />
+        {isTalking && (
+          <div 
+            className="absolute inset-0 rounded-full animate-pulse"
+            style={{ boxShadow: '0 0 20px currentColor' }}
+          />
+        )}
+      </div>
+    )
+  }
+  
+  // Fallback: Sprite sheet (for backwards compatibility)
+  if (image) {
+    const positionMap = {
+      'er-hineda': '25% 16.5%',
+      'er-coder': '75% 16.5%',
+      'er-plan': '25% 50%',
+      'er-serve': '75% 50%',
+      'er-pr': '25% 83.5%'
+    }
+    const position = positionMap[type] || '50% 50%'
+    
+    return (
+      <div 
+        className="relative rounded-lg overflow-hidden"
+        style={{ width: size, height: size }}
+      >
+        <div 
+          className="w-full h-full bg-no-repeat"
+          style={{ 
+            backgroundImage: `url(${image})`,
+            backgroundPosition: position,
+            backgroundSize: '200% 300%'
+          }}
+        />
+        {isTalking && (
+          <div 
+            className="absolute inset-0 rounded-lg animate-pulse"
+            style={{ boxShadow: '0 0 20px currentColor' }}
+          />
+        )}
+      </div>
+    )
+  }
+  
   const creatures = {
     'er-hineda': {
       color: '#ec4899',
@@ -238,18 +296,19 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
   return (
     <div className="bg-gray-100 dark:bg-black/80 rounded-lg border border-gray-600 dark:border-white/20 overflow-hidden font-mono text-xs">
       {/* Header */}
-      <div className="bg-gray-300 dark:bg-white/10 px-3 py-2 flex items-center justify-between border-b border-gray-400 dark:border-white/10">
+      <div className="bg-gray-300 dark:bg-white/10 px-2 sm:px-3 py-2 flex items-center justify-between border-b border-gray-400 dark:border-white/10">
         <div className="flex items-center gap-2">
           <Terminal size={14} className="text-retro-green" />
-          <span className="text-retro-green">AGENT COMM LINK</span>
+          <span className="text-retro-green hidden sm:inline">AGENT COMM LINK</span>
+          <span className="text-retro-green sm:hidden">COMM</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-600 dark:text-gray-500">● LIVE</span>
         </div>
       </div>
       
-      {/* Messages */}
-      <div className="h-48 overflow-y-auto p-2 space-y-1 bg-gray-50 dark:bg-black/50">
+      {/* Messages - responsive height: smaller on mobile */}
+      <div className="h-32 sm:h-40 md:h-48 overflow-y-auto p-2 space-y-1 bg-gray-50 dark:bg-black/50">
         <AnimatePresence>
           {messages.length === 0 ? (
             <div className="text-gray-500 dark:text-gray-600 italic">Esperando mensajes entre agentes...</div>
@@ -337,7 +396,8 @@ const agents = [
     color: 'text-retro-pink',
     borderColor: 'border-retro-pink',
     glowColor: '#ec4899',
-    role: 'Orquestador'
+    role: 'Orquestador',
+    image: '/avatar_er_hineda.png'
   },
   {
     id: 'er-coder',
@@ -347,7 +407,8 @@ const agents = [
     color: 'text-retro-purple',
     borderColor: 'border-retro-purple',
     glowColor: '#8b5cf6',
-    role: 'Constructor'
+    role: 'Constructor',
+    image: '/avatar_er_coder.png'
   },
   {
     id: 'er-plan',
@@ -357,7 +418,8 @@ const agents = [
     color: 'text-retro-yellow',
     borderColor: 'border-retro-yellow',
     glowColor: '#f59e0b',
-    role: 'Arquitecto'
+    role: 'Arquitecto',
+    image: '/avatar_er_plan.png'
   },
   {
     id: 'er-serve',
@@ -367,7 +429,8 @@ const agents = [
     color: 'text-retro-cyan',
     borderColor: 'border-retro-cyan',
     glowColor: '#06b6d4',
-    role: 'Servidor'
+    role: 'Servidor',
+    image: '/avatar_er_serve.png'
   },
   {
     id: 'er-pr',
@@ -377,7 +440,8 @@ const agents = [
     color: 'text-retro-green',
     borderColor: 'border-retro-green',
     glowColor: '#22c55e',
-    role: 'Guardián'
+    role: 'Guardián',
+    image: '/avatar_er_pr.png'
   }
 ]
 
@@ -612,7 +676,7 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
       whileHover={{ scale: 1.02 }}
       onClick={onClick}
       className={`
-        relative p-4 rounded-lg cursor-pointer transition-all
+        relative p-2 sm:p-3 md:p-4 rounded-lg cursor-pointer transition-all
         bg-white/50 dark:bg-black/50 border-2 ${agent.borderColor}
         ${isSelected ? 'ring-2 ring-offset-2 ring-offset-gray-100 dark:ring-offset-black' : ''}
         ${data.status === 'error' ? 'border-retro-red' : ''}
@@ -622,20 +686,20 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
                    data.status === 'error' ? '0 0 20px #ef444440' : 'none' 
       }}
     >
-      <div className="flex items-center gap-4">
-        <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className={`text-lg font-bold ${agent.color}`}>{agent.name}</h3>
-            <span className={`text-xs px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <PixelCreature type={agent.id} size={40} sm={48} md={64} isTalking={data.status === 'running'} image={agent.image} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <h3 className={`text-sm sm:text-base md:text-lg font-bold ${agent.color} truncate`}>{agent.name}</h3>
+            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
               {data.status?.toUpperCase() || 'OFFLINE'}
             </span>
           </div>
-          <p className="text-xs text-gray-500">{data.task || 'Sin actividad'}</p>
+          <p className="text-xs text-gray-500 truncate hidden sm:block">{data.task || 'Sin actividad'}</p>
         </div>
-        <div className="text-right">
-          <div className={`text-xl font-bold ${agent.color}`}>{data.progress || 0}%</div>
-          <div className="text-xs text-gray-500">PROGRESS</div>
+        <div className="text-right flex-shrink-0">
+          <div className={`text-base sm:text-xl font-bold ${agent.color}`}>{data.progress || 0}%</div>
+          <div className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">PROGRESS</div>
         </div>
       </div>
     </motion.div>
@@ -765,10 +829,10 @@ function TaskTimeline({ agent, agentData, color }) {
   }
   
   return (
-    <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-gray-200 dark:border-white/10 p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <History size={16} style={{ color }} />
-        <span className="text-sm font-bold" style={{ color }}>TIMELINE DE TAREAS</span>
+    <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-gray-200 dark:border-white/10 p-2 sm:p-3 md:p-4">
+      <div className="flex items-center gap-2 mb-2 sm:mb-4">
+        <History size={14} sm={16} style={{ color }} />
+        <span className="text-xs sm:text-sm font-bold" style={{ color }}>TIMELINE DE TAREAS</span>
       </div>
       
       {timelineEvents.length === 0 ? (
@@ -776,24 +840,24 @@ function TaskTimeline({ agent, agentData, color }) {
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-white/10" />
+          <div className="absolute left-1.5 sm:left-2 top-0 bottom-0 w-0.5 bg-white/10" />
           
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {timelineEvents.map((event, i) => (
               <motion.div
                 key={event.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="relative pl-6"
+                className="relative pl-4 sm:pl-6"
               >
                 {/* Timeline dot */}
                 <div 
-                  className={`absolute left-0 top-1.5 w-3 h-3 rounded-full border-2 border-black ${event.type === 'user' ? 'bg-retro-yellow' : 'bg-retro-green'}`}
+                  className={`absolute left-0 top-1 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full border-2 border-black ${event.type === 'user' ? 'bg-retro-yellow' : 'bg-retro-green'}`}
                 />
                 
-                <div className="text-xs">
-                  <div className="flex items-center gap-2">
+                <div className="text-[10px] sm:text-xs">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <span className="text-gray-500 font-mono">{event.time}</span>
                     <span className={event.type === 'user' ? 'text-retro-yellow' : 'text-retro-green'}>
                       {event.title}
@@ -907,10 +971,10 @@ function ActivityCharts({ agentStatus }) {
   return (
     <div className="space-y-4">
       {/* Token Usage Chart */}
-      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-purple p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={16} className="text-retro-purple" />
-          <span className="text-sm font-bold text-retro-purple">USO DE TOKENS</span>
+      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-purple p-3 sm:p-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <BarChart3 size={14} sm={16} className="text-retro-purple" />
+          <span className="text-xs sm:text-sm font-bold text-retro-purple">USO DE TOKENS</span>
         </div>
         
         <div className="space-y-2">
@@ -943,27 +1007,27 @@ function ActivityCharts({ agentStatus }) {
         </div>
         
         {/* Token Legend */}
-        <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/10">
+        <div className="flex items-center gap-2 sm:gap-4 mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-white/10">
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-retro-cyan" />
-            <span className="text-xs text-gray-500">Input</span>
+            <span className="text-[10px] sm:text-xs text-gray-500">Input</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-retro-pink" />
-            <span className="text-xs text-gray-500">Output</span>
+            <span className="text-[10px] sm:text-xs text-gray-500">Output</span>
           </div>
         </div>
       </div>
       
       {/* Hourly Activity Chart - DATOS REALES */}
-      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-cyan p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Activity size={16} className="text-retro-cyan" />
-          <span className="text-sm font-bold text-retro-cyan">ACTIVIDAD POR HORA</span>
+      <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-cyan p-3 sm:p-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <Activity size={14} sm={16} className="text-retro-cyan" />
+          <span className="text-xs sm:text-sm font-bold text-retro-cyan">ACTIVIDAD POR HORA</span>
         </div>
         
         {/* SIMPLE Bar Chart - min 3px height */}
-        <div className="flex items-end gap-1 h-20">
+        <div className="flex items-end gap-px sm:gap-1 h-16 sm:h-20">
           {displayHourlyActivity.map((hour, i) => {
             const pct = maxActivity > 0 ? Math.round((hour.activity / maxActivity) * 100) : 0
             const minHeight = 3 // minimum 3px
@@ -975,7 +1039,7 @@ function ActivityCharts({ agentStatus }) {
                   style={{ 
                     height: `${heightPx}px`,
                     backgroundColor: '#06b6d4',
-                    minWidth: '8px'
+                    minWidth: '4px'
                   }}
                   title={`${hour.hour}: ${hour.activity} acts`}
                 />
@@ -985,10 +1049,10 @@ function ActivityCharts({ agentStatus }) {
         </div>
         
         {/* X-axis labels */}
-        <div className="flex justify-between mt-2">
-          <span className="text-[8px] text-gray-600">{displayHourlyActivity[0]?.hour}</span>
-          <span className="text-[8px] text-gray-600">{displayHourlyActivity[Math.floor(displayHourlyActivity.length/2)]?.hour}</span>
-          <span className="text-[8px] text-gray-600">{displayHourlyActivity[displayHourlyActivity.length-1]?.hour}</span>
+        <div className="flex justify-between mt-1 sm:mt-2">
+          <span className="text-[8px] sm:text-[10px] text-gray-600">{displayHourlyActivity[0]?.hour}</span>
+          <span className="text-[8px] sm:text-[10px] text-gray-600">{displayHourlyActivity[Math.floor(displayHourlyActivity.length/2)]?.hour}</span>
+          <span className="text-[8px] sm:text-[10px] text-gray-600">{displayHourlyActivity[displayHourlyActivity.length-1]?.hour}</span>
         </div>
       </div>
     </div>
@@ -1901,7 +1965,7 @@ function LogModal({ agent, logs, onClose }) {
         {/* Modal Header */}
         <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between" style={{ backgroundColor: `${agent.glowColor}15` }}>
           <div className="flex items-center gap-3">
-            <PixelCreature type={agent.id} size={48} />
+            <PixelCreature type={agent.id} size={48} image={agent.image} />
             <div>
               <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
               <p className="text-xs text-gray-500">
@@ -1996,31 +2060,31 @@ function AgentDetail({ agent, agentData }) {
       >
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-white/10" style={{ backgroundColor: `${data.status === 'error' ? '#ef444415' : agent.glowColor}15` }}>
-          <div className="flex items-center gap-4">
-            <PixelCreature type={agent.id} size={64} isTalking={data.status === 'running'} />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className={`text-xl font-bold ${agent.color}`}>{agent.name}</h2>
-                <span className={`text-xs px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+            <PixelCreature type={agent.id} size={40} sm={48} md={64} isTalking={data.status === 'running'} image={agent.image} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                <h2 className={`text-base sm:text-lg md:text-xl font-bold ${agent.color} truncate`}>{agent.name}</h2>
+                <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
                   ● {data.status?.toUpperCase() || 'OFFLINE'}
                 </span>
               </div>
-              <p className="text-sm text-gray-400 mt-1">{data.task || 'Sin actividad'}</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1 truncate">{data.task || 'Sin actividad'}</p>
             </div>
-            {/* Progress ring */}
-            <div className="relative w-16 h-16">
-              <svg className="w-16 h-16 -rotate-90">
-                <circle cx="32" cy="32" r="28" stroke="white/10" strokeWidth="4" fill="none" />
+            {/* Progress ring - smaller on mobile */}
+            <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0">
+              <svg className="w-full h-full -rotate-90">
+                <circle cx="50%" cy="50%" r="45%" stroke="white/10" strokeWidth="4" fill="none" />
                 <circle 
-                  cx="32" cy="32" r="28" 
+                  cx="50%" cy="50%" r="45%" 
                   stroke={data.status === 'error' ? '#ef4444' : agent.glowColor} 
                   strokeWidth="4" 
                   fill="none"
-                  strokeDasharray={`${(data.progress || 0) * 1.76} 176`}
+                  strokeDasharray={`${(data.progress || 0) * 2.83} 283`}
                   className="transition-all duration-500"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: data.status === 'error' ? '#ef4444' : agent.glowColor }}>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold" style={{ color: data.status === 'error' ? '#ef4444' : agent.glowColor }}>
                 {data.progress || 0}%
               </span>
             </div>
@@ -2028,16 +2092,16 @@ function AgentDetail({ agent, agentData }) {
         </div>
 
         {/* Terminal Logs - manual scroll + search (FASE 2) */}
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Terminal size={14} className="text-retro-green" />
+        <div className="p-2 sm:p-3 md:p-4">
+          <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Terminal size={12} sm={14} className="text-retro-green" />
               <span className="text-xs text-gray-500 font-mono">LIVE LOGS</span>
               <span className="text-xs text-gray-600">
                 {searchTerm ? `(${filteredLogs.length}/${logs.length})` : `(${logs.length})`}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
               {logs.length > 0 && (
                 <>
                   {/* Search inline */}
@@ -2047,7 +2111,7 @@ function AgentDetail({ agent, agentData }) {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Filtrar..."
-                      className="w-24 bg-white dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-retro-cyan"
+                      className="w-20 sm:w-24 bg-white dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:border-retro-cyan"
                     />
                     {searchTerm && (
                       <button 
@@ -2064,14 +2128,14 @@ function AgentDetail({ agent, agentData }) {
                     className="flex items-center gap-1 text-xs text-retro-cyan hover:text-retro-cyan/80 transition-colors"
                   >
                     <Maximize2 size={12} />
-                    Expandir
+                    <span className="hidden sm:inline">Expandir</span>
                   </button>
                 </>
               )}
             </div>
           </div>
           
-          <div className="bg-gray-100 dark:bg-black/90 rounded-lg border border-gray-300 dark:border-white/10 p-3 h-64 overflow-y-auto font-mono text-xs">
+          <div className="bg-gray-100 dark:bg-black/90 rounded-lg border border-gray-300 dark:border-white/10 p-2 sm:p-3 h-40 sm:h-52 md:h-64 overflow-y-auto font-mono text-xs">
             {logs.length === 0 ? (
               <div className="text-gray-600 italic">Esperando logs...</div>
             ) : filteredLogs.length === 0 ? (
@@ -2084,14 +2148,14 @@ function AgentDetail({ agent, agentData }) {
           </div>
           
           {data.started && (
-            <div className="mt-3 text-xs text-gray-500">
+            <div className="mt-2 sm:mt-3 text-xs text-gray-500">
               Iniciado: <span className="text-retro-cyan font-mono">{data.started}</span>
             </div>
           )}
         </div>
 
         {/* Task Timeline (FASE 2) */}
-        <div className="p-4 pt-0">
+        <div className="p-2 sm:p-3 md:p-4 pt-0">
           <TaskTimeline agent={agent} agentData={agentData} color={agent.glowColor} />
         </div>
       </motion.div>
@@ -2114,6 +2178,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms'
   const { status: agentStatus, loading: statusLoading } = useAgentStatus()
   
   // Mensajes: primero los reales del backend, luego fallback simulado
@@ -2198,35 +2263,67 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white">
+    <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white overflow-x-hidden">
       {/* Error Notifications (FASE 2) */}
       <ErrorNotifications 
         agentsData={agentStatus?.agents} 
         onAgentClick={handleErrorAgentClick}
       />
       
-      <header className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/80">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Cpu className="text-retro-purple" size={32} />
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white font-display">AGENT DASHBOARD</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-500">er Hineda & Co.</p>
+      {/* Mobile-friendly header */}
+      <header className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/80 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Cpu className="text-retro-purple flex-shrink-0" size={20} sm={24} md={32} />
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white font-display truncate">AGENT DASHBOARD</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-500 hidden sm:block">er Hineda & Co.</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             <ThemeToggle className="bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10" />
-            <div className="text-right">
+            <div className="text-right hidden sm:block">
               <div className="text-xs text-gray-500">HORA</div>
-              <div className="font-mono text-retro-cyan">{currentTime.toLocaleTimeString()}</div>
+              <div className="font-mono text-retro-cyan text-xs">{currentTime.toLocaleTimeString()}</div>
             </div>
             <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-400">SALIR</button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Tab Navigation - scrollable on mobile */}
+      <div className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/50 sticky top-[60px] sm:top-[72px] md:top-[80px] z-30 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6">
+          <div className="flex gap-1 sm:gap-2 min-w-max">
+            {[
+              { id: 'metrics', label: 'Métricas', icon: BarChart3 },
+              { id: 'heatmap', label: 'Heatmap', icon: Activity },
+              { id: 'prediction', label: 'Predicción', icon: Zap },
+              { id: 'comms', label: 'Comms', icon: MessageSquare }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-all border-b-2 whitespace-nowrap ${
+                  activeTab === tab.id 
+                    ? 'border-retro-purple text-retro-purple bg-retro-purple/5' 
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
+                }`}
+              >
+                <tab.icon size={14} sm={16} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-8">
+        {/* Tab Content */}
+        {activeTab === 'metrics' && (
+          <>
+        {/* Agent Cards - responsive grid: 1 col mobile, 2 col small, 3 col tablet+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
           {agents.map(agent => (
             <AgentCard 
               key={agent.id} 
@@ -2239,22 +2336,24 @@ function App() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main content area with sidebar - responsive: stacked on mobile, side-by-side on lg+ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2">
             <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} />
           </div>
           
-          <div className="space-y-4">
-            {/* Comms Terminal */}
+          {/* Sidebar content */}
+          <div className="space-y-3 sm:space-y-4">
+            {/* Comms Terminal - smaller height on mobile */}
             <AgentTerminal 
               messages={agentStatus?.communications || agentMessages} 
               onAgentClick={handleAgentClickFromTerminal}
             />
 
             {/* Estado del sistema */}
-            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-pink p-4">
-              <h3 className="text-retro-pink font-mono text-sm mb-3 flex items-center gap-2">
-                <Activity size={16} />
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-pink p-3 sm:p-4">
+              <h3 className="text-retro-pink font-mono text-xs sm:text-sm mb-2 sm:mb-3 flex items-center gap-2">
+                <Activity size={14} sm={16} />
                 ESTADO DEL SISTEMA
               </h3>
               {[
@@ -2265,17 +2364,17 @@ function App() {
                 { label: 'Última Actualización', value: agentStatus?.generatedAt ? new Date(agentStatus.generatedAt).toLocaleTimeString() : '--:--:--', color: 'text-gray-400' },
                 { label: 'Modo Seguro', value: 'ACTIVO', color: 'text-retro-green' },
               ].map(item => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-gray-500 text-sm">{item.label}</span>
+                <div key={item.label} className="flex items-center justify-between py-1 sm:py-2 border-b border-white/5 text-xs sm:text-sm">
+                  <span className="text-gray-500">{item.label}</span>
                   <span className={`font-mono ${item.color}`}>{item.value}</span>
                 </div>
               ))}
             </div>
 
             {/* Métricas de Tokens */}
-            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-purple p-4">
-              <h3 className="text-retro-purple font-mono text-sm mb-3 flex items-center gap-2">
-                <Zap size={16} />
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-purple p-3 sm:p-4">
+              <h3 className="text-retro-purple font-mono text-xs sm:text-sm mb-2 sm:mb-3 flex items-center gap-2">
+                <Zap size={14} sm={16} />
                 MÉTRICAS DE TOKENS
               </h3>
               {[
@@ -2283,8 +2382,8 @@ function App() {
                 { label: 'Output', value: agentStatus?.metrics?.tokens?.output ?? 0, color: 'text-retro-pink', suffix: '' },
                 { label: 'Total', value: agentStatus?.metrics?.tokens?.total ?? 0, color: 'text-retro-yellow', suffix: ' tokens' },
               ].map(item => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-gray-500 text-sm">{item.label}</span>
+                <div key={item.label} className="flex items-center justify-between py-1 sm:py-2 border-b border-white/5 text-xs sm:text-sm">
+                  <span className="text-gray-500">{item.label}</span>
                   <span className={`font-mono ${item.color}`}>{item.value.toLocaleString()}{item.suffix}</span>
                 </div>
               ))}
@@ -2294,6 +2393,38 @@ function App() {
             <ActivityCharts agentStatus={agentStatus} />
           </div>
         </div>
+          </>
+        )}
+
+        {/* Heatmap Tab */}
+        {activeTab === 'heatmap' && (
+          <div className="space-y-4 sm:space-y-6">
+            <ActivityHeatmap agentStatus={agentStatus} />
+          </div>
+        )}
+
+        {/* Prediction Tab */}
+        {activeTab === 'prediction' && (
+          <div className="space-y-4 sm:space-y-6">
+            <GlobalMetricsDashboard agentStatus={agentStatus} />
+          </div>
+        )}
+
+        {/* Comms Tab */}
+        {activeTab === 'comms' && (
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-green p-4">
+              <h3 className="text-retro-green font-mono text-sm mb-4 flex items-center gap-2">
+                <MessageSquare size={16} />
+                COMUNICACIONES ENTRE AGENTES
+              </h3>
+              <AgentTerminal 
+                messages={agentStatus?.communications || agentMessages} 
+                onAgentClick={handleAgentClickFromTerminal}
+              />
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="border-t border-white/10 py-4 mt-8">
