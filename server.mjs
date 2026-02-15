@@ -188,6 +188,8 @@ function isSignificantMessage(msg) {
       return !isNoise(content)
     }
   }
+  // Include toolResult messages - they contain tool output that should be counted
+  if (msg.role === 'toolResult') return true
   return false
 }
 
@@ -357,26 +359,78 @@ function processAgent(agentInfo) {
   try {
     const content = readFileSync(join(dir, sessionFile), 'utf-8')
     const lines = content.trim().split('\n').reverse()
-    
+
+    // Get session start time from first line (session entry)
+    const sessionStartLine = lines[lines.length - 1]
+    let sessionStartTime = null
+    let uptime = 0
+    try {
+      const sessionEntry = JSON.parse(sessionStartLine)
+      if (sessionEntry.type === 'session') {
+        sessionStartTime = new Date(sessionEntry.timestamp).getTime()
+        uptime = ((Date.now() - sessionStartTime) / 1000 / 60 / 60) // hours
+      }
+    } catch (e) {}
+
     const today = new Date().toDateString()
     const now = Date.now()
     const tenMinsAgo = now - 10 * 60 * 1000
     const thirtyMinsAgo = now - 30 * 60 * 1000 // Para detectar idle
-    
+
     const logs = []
     const communications = []
     let currentTask = null
     let hasToolCalls = false
     let lastMessageTime = 0
     let hasErrors = false
-    
+
+    // Función unificada para detectar errores en mensajes
+    function detectError(msg) {
+      // Check for isError flag - this is the most reliable indicator
+      if (msg.isError === true) return true
+      
+      // Check details.status for error
+      if (msg.details?.status === 'error') return true
+      
+      // Check if details.error exists
+      if (msg.details?.error) return true
+      
+      // Check if content contains explicit error indicators
+      // Look for patterns like "Error:", "Failed:", "Exception:" at the START of content
+      if (Array.isArray(msg.content)) {
+        const contentText = msg.content.map(c => c.text || '').join(' ')
+        const trimmedContent = contentText.trim()
+        // Only flag as error if content STARTS with explicit error pattern
+        const explicitErrorPattern = /^(error|failed|exception):\s*/i
+        if (explicitErrorPattern.test(trimmedContent)) return true
+        // Also check for JSON error format: {"status": "error", ...}
+        if (trimmedContent.includes('"status"') && trimmedContent.includes('"error"')) {
+          try {
+            const parsed = JSON.parse(trimmedContent)
+            if (parsed.status === 'error' || parsed.error) return true
+          } catch (e) {
+            // Not JSON, ignore
+          }
+        }
+      }
+      
+      // Check for string content with explicit error pattern at START
+      if (msg.content && typeof msg.content === 'string') {
+        const trimmedContent = msg.content.trim()
+        const explicitErrorPattern = /^(error|failed|exception):\s*/i
+        if (explicitErrorPattern.test(trimmedContent)) return true
+      }
+      
+      return false
+    }
+
     for (const line of lines) {
       try {
         const entry = JSON.parse(line)
         const entryDate = new Date(entry.timestamp).toDateString()
         const entryTime = new Date(entry.timestamp).getTime()
-        
-        if (entryDate !== today) continue
+
+        // Process ALL messages (not just today) for accurate token counting
         if (entry.type !== 'message') continue
         
         const msg = entry.message
@@ -387,14 +441,22 @@ function processAgent(agentInfo) {
           if (msg.content.some(c => c.type === 'toolCall')) {
             hasToolCalls = true
           }
-          // Detectar errores en tool results
-          if (msg.content.some(c => c.type === 'toolResult' && c.content?.includes('error'))) {
+        }
+        
+        // Detectar errores en tool results usando la función unificada
+        if (msg.role === 'toolResult') {
+          if (detectError(msg)) {
             hasErrors = true
           }
         }
         
-        // Detectar errores en el entry
-        if (entry.error || (msg.content && typeof msg.content === 'string' && msg.content.toLowerCase().includes('error'))) {
+        // Detectar errores explícitos en el entry
+        if (entry.error) {
+          hasErrors = true
+        }
+        
+        // Verificar errores en el mensaje usando la función unificada
+        if (detectError(msg)) {
           hasErrors = true
         }
         
@@ -417,6 +479,11 @@ function processAgent(agentInfo) {
         } else {
           outputTokens += msgTokens
         }
+        
+        // Contar tokens de toolCalls (herramientas)
+        const toolCallTokens = extractToolCallTokens(msg)
+        inputTokens += toolCallTokens.input
+        outputTokens += toolCallTokens.output
         
         const time = new Date(entry.timestamp).toLocaleTimeString('es-ES', { hour12: false })
         
@@ -478,9 +545,12 @@ function processAgent(agentInfo) {
       status,
       task: currentTask || (status === 'error' ? 'Error detectado' : 'Esperando órdenes...'),
       progress,
-      started: logs[0]?.time || null,
-      logs: logs.slice(0, 10),
-      communications: communications.slice(0, 5),
+      started: sessionStartTime ? new Date(sessionStartTime).toISOString() : (logs[0]?.time || null),
+      uptime: uptime,
+      sessionStartTime: sessionStartTime,
+      lastError: hasErrors ? new Date().toISOString() : null,
+      logs: logs.slice(0, 100),
+      communications: communications.slice(0, 50),
       tokens: {
         input: inputTokens,
         output: outputTokens,
@@ -670,6 +740,21 @@ function extractToolCallTokens(msg) {
   
   if (!Array.isArray(msg.content)) return { input: 0, output: 0 }
   
+  // Handle toolResult messages (role === 'toolResult')
+  // These messages have content with actual output from tool execution
+  if (msg.role === 'toolResult') {
+    for (const item of msg.content) {
+      if (item.type === 'text' && item.text) {
+        outputTokens += countTokens(item.text)
+      } else if (item.type === 'image' && item.image) {
+        // Count image URLs as output tokens too
+        outputTokens += countTokens(JSON.stringify(item.image))
+      }
+    }
+    return { input: inputTokens, output: outputTokens }
+  }
+  
+  // Handle toolCall and toolResult items within assistant messages
   for (const item of msg.content) {
     // toolCall: contar tokens en los argumentos (input)
     if (item.type === 'toolCall' && item.arguments) {
@@ -677,7 +762,7 @@ function extractToolCallTokens(msg) {
       inputTokens += countTokens(argsStr)
     }
     
-    // toolResult: contar tokens en el contenido (output)
+    // toolResult: contar tokens en el contenido (output) - for embedded results
     if (item.type === 'toolResult' && item.content) {
       const contentStr = typeof item.content === 'string' ? item.content : JSON.stringify(item.content)
       outputTokens += countTokens(contentStr)
@@ -743,7 +828,9 @@ function calculateHourlyActivity() {
             }
             
             // Contar actividad (mensaje significativo)
-            if (isSignificantMessage(msg)) {
+            // Note: toolResult messages are already counted in extractToolCallTokens above
+            // so we don't double-count them here
+            if (isSignificantMessage(msg) && msg.role !== 'toolResult') {
               hourlyData[hourKey].activity++
               
               // Contar tokens
@@ -778,7 +865,121 @@ let hourlyActivityCache = {
   lastUpdate: 0
 }
 
-// GET /api/metrics/activity - Actividad por hora y tokens por hora (DATOS REALES)
+// =============================================================================
+// FUNCIÓN PARA CALCULAR ACTIVIDAD DIARIA (últimos 7 días)
+// =============================================================================
+function calculateDailyActivity() {
+  const now = new Date()
+  const dailyData = {}
+  
+  // Inicializar últimos 7 días
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now)
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split('T')[0]
+    dailyData[dateStr] = { activity: 0, sessions: 0, tokens: 0, input: 0, output: 0 }
+  }
+  
+  // Leer todas las sesiones de todos los agentes
+  for (const agent of agentsList) {
+    const dir = join(AGENTS_DIR, agent.folder, 'sessions')
+    if (!existsSync(dir)) continue
+    
+    try {
+      const files = readdirSync(dir)
+        .filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+      
+      for (const file of files) {
+        try {
+          const content = readFileSync(join(dir, file), 'utf-8')
+          const lines = content.trim().split('\n')
+          
+          // Contar sesiones (cada archivo es una sesión)
+          let hasContent = false
+          
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line)
+              const entryTime = new Date(entry.timestamp)
+              const dateStr = entryTime.toISOString().split('T')[0]
+              
+              // Solo procesar entradas de los últimos 7 días
+              if (!dailyData[dateStr]) continue
+              if (entry.type !== 'message') continue
+              
+              const msg = entry.message
+              if (!msg?.role) continue
+              
+              hasContent = true
+              
+              // Contar tokens de toolCalls
+              const toolCallTokens = extractToolCallTokens(msg)
+              if (toolCallTokens.input > 0 || toolCallTokens.output > 0) {
+                dailyData[dateStr].input += toolCallTokens.input
+                dailyData[dateStr].output += toolCallTokens.output
+                
+                if (Array.isArray(msg.content)) {
+                  const toolCallCount = msg.content.filter(c => c.type === 'toolCall').length
+                  dailyData[dateStr].activity += toolCallCount
+                }
+              }
+              
+              // Contar actividad de mensajes
+              // Note: toolResult messages are already counted in extractToolCallTokens above
+              // so we don't double-count them here
+              if (isSignificantMessage(msg) && msg.role !== 'toolResult') {
+                dailyData[dateStr].activity++
+                
+                const text = extractCleanText(msg)
+                const msgTokens = countTokens(text)
+                if (msg.role === 'user') {
+                  dailyData[dateStr].input += msgTokens
+                } else {
+                  dailyData[dateStr].output += msgTokens
+                }
+              }
+            } catch {}
+          }
+          
+          // Contar sesión si tiene contenido
+          if (hasContent) {
+            const firstLine = lines[0]
+            if (firstLine) {
+              try {
+                const entry = JSON.parse(firstLine)
+                const entryTime = new Date(entry.timestamp)
+                const dateStr = entryTime.toISOString().split('T')[0]
+                if (dailyData[dateStr]) {
+                  dailyData[dateStr].sessions++
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+  
+  // Convertir a array
+  const dailyActivity = Object.entries(dailyData).map(([date, data]) => ({
+    date,
+    activity: data.activity,
+    sessions: data.sessions,
+    tokens: data.input + data.output,
+    input: data.input,
+    output: data.output
+  })).sort((a, b) => a.date.localeCompare(b.date))
+  
+  return dailyActivity
+}
+
+// Cache para actividad diaria
+let dailyActivityCache = {
+  data: null,
+  lastUpdate: 0
+}
+
+// GET /api/metrics/activity - Actividad por hora (hoy) y diaria (7 días)
 app.get('/api/metrics/activity', authenticateToken, async (req, res) => {
   try {
     const now = Date.now()
@@ -789,8 +990,9 @@ app.get('/api/metrics/activity', authenticateToken, async (req, res) => {
     }
     
     const hourlyActivity = calculateHourlyActivity()
+    const dailyActivity = calculateDailyActivity()
     
-    // Calcular totales
+    // Calcular totales de hoy (hourly)
     const totals = hourlyActivity.reduce((acc, hour) => ({
       activity: acc.activity + hour.activity,
       input: acc.input + hour.input,
@@ -799,6 +1001,7 @@ app.get('/api/metrics/activity', authenticateToken, async (req, res) => {
     
     const response = {
       hourly: hourlyActivity,
+      daily: dailyActivity,
       totals,
       generatedAt: new Date().toISOString()
     }

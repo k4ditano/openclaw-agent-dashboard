@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare, Server, Gauge, TrendingUp, CalendarDays } from 'lucide-react'
 
 // =============================================================================
 // THEME CONTEXT - Dark/Light Theme
@@ -76,12 +76,6 @@ const AuthContext = createContext(null)
 // Hook para acceder al token
 function useAuth() {
   return useContext(AuthContext)
-}
-
-// Credenciales para login (solo se usan para solicitar token, no para verificar localmente)
-const CREDENTIALS = {
-  username: 'ErHinedaAgents',
-  password: 'qubgos-9cehpe-caggEz'
 }
 
 // Función para hacer requests autenticadas
@@ -290,8 +284,41 @@ const PixelCreature = ({ type, size = 80, isTalking = false, image }) => {
 }
 
 // Terminal de comunicaciones entre agentes
-const AgentTerminal = ({ messages, onAgentClick }) => {
+const AgentTerminal = ({ messages, onAgentClick, agents = [] }) => {
   const [autoScroll, setAutoScroll] = useState(true)
+  const [scrollPosition, setScrollPosition] = useState({ atBottom: true, isUserScrolling: false })
+  const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
+  const prevMessagesLengthRef = useRef(messages.length)
+  
+  // Función para obtener imagen del agente
+  const getAgentImage = (agentId) => {
+    const agent = agents.find(a => a.id === agentId)
+    return agent?.image || null
+  }
+  
+  const isInitialRender = useRef(true)
+  
+  // Check if currently at bottom
+  const checkIfAtBottom = () => {
+    if (!messagesContainerRef.current) return true
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
+    return scrollHeight - scrollTop - clientHeight < 50
+  }
+  
+  // Auto-scroll disabled - causing issues on mobile page refresh
+  // The scrollIntoView was moving the page unexpectedly
+  
+  // Handle scroll to detect if user scrolled up
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
+    setScrollPosition(prev => ({
+      atBottom: isAtBottom,
+      isUserScrolling: true
+    }))
+    setAutoScroll(isAtBottom)
+  }
   
   return (
     <div className="bg-gray-100 dark:bg-black/80 rounded-lg border border-gray-600 dark:border-white/20 overflow-hidden font-mono text-xs">
@@ -307,8 +334,12 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
         </div>
       </div>
       
-      {/* Messages - responsive height: smaller on mobile */}
-      <div className="h-32 sm:h-40 md:h-48 overflow-y-auto p-2 space-y-1 bg-gray-50 dark:bg-black/50">
+      {/* Messages - larger height with proper scrolling */}
+      <div 
+        ref={messagesContainerRef}
+        className="h-48 sm:h-56 md:h-64 overflow-y-auto p-2 space-y-1 bg-gray-50 dark:bg-black/50 scroll-smooth"
+        onScroll={handleScroll}
+      >
         <AnimatePresence>
           {messages.length === 0 ? (
             <div className="text-gray-500 dark:text-gray-600 italic">Esperando mensajes entre agentes...</div>
@@ -322,24 +353,24 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
               >
                 {/* From avatar */}
                 <button onClick={() => onAgentClick(msg.from)} className="flex-shrink-0">
-                  <PixelCreature type={msg.from} size={24} />
+                  <PixelCreature type={msg.from} size={24} image={getAgentImage(msg.from)} />
                 </button>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-retro-cyan font-bold">{msg.from.toUpperCase()}</span>
                     <span className="text-gray-500 dark:text-gray-600">→</span>
                     <span className="text-retro-pink font-bold">{msg.to.toUpperCase()}</span>
                     <span className="text-gray-500 dark:text-gray-600 text-[10px]">{msg.time}</span>
                   </div>
-                  <div className="text-gray-700 dark:text-gray-300 truncate">{msg.content}</div>
+                  <div className="text-gray-700 dark:text-gray-300 break-words">{msg.content}</div>
                 </div>
                 
                 {/* Arrow animation */}
                 <motion.span
                   animate={{ opacity: [0.3, 1, 0.3] }}
                   transition={{ duration: 1, repeat: Infinity }}
-                  className="text-retro-green"
+                  className="text-retro-green flex-shrink-0"
                 >
                   ▸
                 </motion.span>
@@ -347,7 +378,16 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
             ))
           )}
         </AnimatePresence>
+        {/* Invisible element for auto-scroll */}
+        <div ref={messagesEndRef} />
       </div>
+      
+      {/* Scroll indicator */}
+      {!autoScroll && messages.length > 0 && (
+        <div className="px-2 py-1 text-[10px] text-gray-500 bg-gray-200 dark:bg-white/5 text-center">
+          ↑ Más mensajes arriba
+        </div>
+      )}
       
       {/* Input模拟 */}
       <div className="bg-white dark:bg-white/5 px-3 py-2 border-t border-gray-300 dark:border-white/10">
@@ -357,6 +397,359 @@ const AgentTerminal = ({ messages, onAgentClick }) => {
         </div>
       </div>
     </div>
+  )
+}
+
+// Network visualization for agent communications - Enhanced version
+const CommsNetwork = ({ communications = [], agents = [], onAgentClick }) => {
+  // Map comm IDs to agent IDs
+  const mapCommIdToAgentId = (commId) => {
+    const mapping = {
+      'main': 'er-hineda',
+      'planner': 'er-plan',
+      'coder': 'er-coder',
+      'netops': 'er-serve',
+      'pr-reviewer': 'er-pr'
+    }
+    if (mapping[commId]) return mapping[commId]
+    // If already starts with er-, use as is
+    if (commId.startsWith('er-')) return commId
+    return commId
+  }
+
+  // Calculate connection strength between agents
+  const connectionMap = {}
+  const agentSet = new Set()
+
+  communications.forEach(msg => {
+    const fromMapped = mapCommIdToAgentId(msg.from)
+    const toMapped = mapCommIdToAgentId(msg.to)
+    agentSet.add(fromMapped)
+    agentSet.add(toMapped)
+    const key = [fromMapped, toMapped].sort().join('-')
+    connectionMap[key] = (connectionMap[key] || 0) + 1
+  })
+
+  // Get positions for agents in a circle - always show all 5 agents
+  const allAgents = ['er-hineda', 'er-plan', 'er-coder', 'er-serve', 'er-pr']
+  const activeAgents = allAgents.filter(id => agentSet.has(id))
+  const displayAgents = activeAgents.length > 0 ? activeAgents : allAgents
+
+  const positions = {}
+  const centerX = 50
+  const centerY = 50
+  const radius = 32
+
+  displayAgents.forEach((agentId, i) => {
+    const angle = (2 * Math.PI * i) / displayAgents.length - Math.PI / 2
+    positions[agentId] = {
+      x: centerX + radius * Math.cos(angle),
+      y: centerY + radius * Math.sin(angle)
+    }
+  })
+
+  const maxConnection = Math.max(...Object.values(connectionMap), 1)
+
+  // Get agent color
+  const getAgentColor = (id) => {
+    const colors = {
+      'er-hineda': '#22d3ee', // cyan
+      'er-plan': '#34d399',   // green
+      'er-coder': '#a78bfa',  // purple
+      'er-serve': '#f472b6',  // pink
+      'er-pr': '#fbbf24'      // yellow
+    }
+    return colors[id] || '#6b7280'
+  }
+
+  // Get agent emoji
+  const getAgentEmoji = (id) => {
+    const emojis = {
+      'er-hineda': '🧉',
+      'er-plan': '📐',
+      'er-coder': '🤖',
+      'er-serve': '🌐',
+      'er-pr': '🔍'
+    }
+    return emojis[id] || '●'
+  }
+
+  // Get agent name
+  const getAgentName = (id) => {
+    const names = {
+      'er-hineda': 'Hineda',
+      'er-plan': 'Plan',
+      'er-coder': 'Coder',
+      'er-serve': 'Serve',
+      'er-pr': 'PR'
+    }
+    return names[id] || id
+  }
+
+  if (displayAgents.length === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <Network size={32} className="mx-auto mb-2 opacity-50" />
+          <p className="text-xs">Sin comunicaciones aún</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 100 100" className="w-full h-full" style={{ background: 'radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a0f 100%)' }}>
+      <defs>
+        {/* Glow filters */}
+        <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        {/* Gradient for connections */}
+        <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.8"/>
+          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.8"/>
+        </linearGradient>
+        {/* Radial gradient for center */}
+        <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4"/>
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+
+      {/* Center glow */}
+      {displayAgents.length >= 2 && (
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={20}
+          fill="url(#centerGlow)"
+        />
+      )}
+
+      {/* Animated connections with flow */}
+      {Object.entries(connectionMap).map(([key, count]) => {
+        const [from, to] = key.split('-')
+        if (!positions[from] || !positions[to]) return null
+        const strength = count / maxConnection
+        const color = getAgentColor(from)
+
+        return (
+          <g key={key}>
+            {/* Base connection line */}
+            <line
+              x1={positions[from].x}
+              y1={positions[from].y}
+              x2={positions[to].x}
+              y2={positions[to].y}
+              stroke={color}
+              strokeWidth={0.3 + strength * 1}
+              strokeOpacity={0.2 + strength * 0.4}
+              strokeDasharray="2 1"
+            />
+            {/* Glowing core */}
+            <line
+              x1={positions[from].x}
+              y1={positions[from].y}
+              x2={positions[to].x}
+              y2={positions[to].y}
+              stroke={color}
+              strokeWidth={0.1 + strength * 0.3}
+              strokeOpacity={0.6 + strength * 0.4}
+            />
+            {/* Animated flow particles */}
+            {strength > 0.3 && (
+              <circle r="0.8" fill={color} filter="url(#glow-cyan)">
+                <animateMotion
+                  dur={`${2 + strength * 2}s`}
+                  repeatCount="indefinite"
+                  path={`M ${positions[from].x} ${positions[from].y} L ${positions[to].x} ${positions[to].y}`}
+                />
+                <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+            )}
+          </g>
+        )
+      })}
+
+      {/* Center hub */}
+      {displayAgents.length >= 2 && (
+        <g>
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={6}
+            fill="#1e1b4b"
+            stroke="#6366f1"
+            strokeWidth={0.3}
+            opacity={0.8}
+          />
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={4}
+            fill="#6366f1"
+            opacity={0.6}
+          >
+            <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.6;0.8;0.6" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r={2}
+            fill="#a5b4fc"
+          >
+            <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+      )}
+
+      {/* Agent nodes */}
+      {displayAgents.map(agentId => {
+        const pos = positions[agentId]
+        const agent = agents.find(a => a.id === agentId)
+        const color = getAgentColor(agentId)
+        const emoji = getAgentEmoji(agentId)
+        const name = getAgentName(agentId)
+        const isActive = communications.some(c => c.from === agentId || c.to === agentId)
+        const connectionCount = Object.entries(connectionMap)
+          .filter(([key]) => key.includes(agentId))
+          .reduce((sum, [, count]) => sum + count, 0)
+
+        return (
+          <g
+            key={agentId}
+            onClick={() => onAgentClick(agentId)}
+            className="cursor-pointer"
+          >
+            {/* Outer glow ring */}
+            <circle
+              cx={pos.x}
+              cy={pos.y}
+              r={12}
+              fill="transparent"
+              stroke={color}
+              strokeWidth={0.2}
+              opacity={0.2}
+            />
+
+            {/* Animated ring when active */}
+            {isActive && (
+              <circle
+                cx={pos.x}
+                cy={pos.y}
+                r={11}
+                fill="transparent"
+                stroke={color}
+                strokeWidth={0.4}
+                opacity={0.8}
+                filter="url(#glow-purple)"
+              >
+                <animate attributeName="r" values="9;12;9" dur="1.5s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+            )}
+
+            {/* Main node background */}
+            <circle
+              cx={pos.x}
+              cy={pos.y}
+              r={8}
+              fill={`${color}20`}
+              stroke={color}
+              strokeWidth={0.5}
+            />
+
+            {/* Inner gradient */}
+            <circle
+              cx={pos.x}
+              cy={pos.y}
+              r={6}
+              fill={color}
+              opacity={0.3}
+            />
+
+            {/* Avatar image or fallback to emoji */}
+            {agent?.image ? (
+              <g>
+                <defs>
+                  <clipPath id={`clip-${agentId}`}>
+                    <circle cx={pos.x} cy={pos.y} r={7} />
+                  </clipPath>
+                </defs>
+                <image
+                  href={agent.image}
+                  x={pos.x - 7}
+                  y={pos.y - 7}
+                  width={14}
+                  height={14}
+                  clipPath={`url(#clip-${agentId})`}
+                  preserveAspectRatio="xMidYMid slice"
+                />
+              </g>
+            ) : (
+              /* Emoji in center */
+              <text
+                x={pos.x}
+                y={pos.y + 1.5}
+                textAnchor="middle"
+                fontSize={6}
+                dominantBaseline="middle"
+              >
+                {emoji}
+              </text>
+            )}
+
+            {/* Connection count badge */}
+            {connectionCount > 0 && (
+              <g>
+                <circle
+                  cx={pos.x + 7}
+                  cy={pos.y - 7}
+                  r={3}
+                  fill="#0f172a"
+                  stroke={color}
+                  strokeWidth={0.3}
+                />
+                <text
+                  x={pos.x + 7}
+                  y={pos.y - 6.5}
+                  textAnchor="middle"
+                  fill={color}
+                  fontSize={2.5}
+                  dominantBaseline="middle"
+                >
+                  {connectionCount}
+                </text>
+              </g>
+            )}
+
+            {/* Agent label */}
+            <text
+              x={pos.x}
+              y={pos.y + 14}
+              textAnchor="middle"
+              fill="#9ca3af"
+              fontSize={3}
+              fontFamily="monospace"
+            >
+              {name}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
   )
 }
 
@@ -623,13 +1016,36 @@ function useAgentStatus() {
         }
       }
 
+      // Contador de reintentos con backoff exponencial
+      let reconnectAttempts = 0
+      const maxReconnectAttempts = 3
+      
       eventSource.onerror = (err) => {
         console.warn('SSE error, reconectando...', err)
         setConnected(false)
         eventSource.close()
         
-        // Reintentar conexión en 5 segundos
-        setTimeout(connectSSE, 5000)
+        // Verificar token antes de reintentar
+        const currentToken = localStorage.getItem('jwt_token')
+        if (!currentToken) {
+          console.warn('SSE: Token no disponible, no se reconecta')
+          setError('Sesión expirada')
+          return
+        }
+        
+        // Limitar reintentos
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn('SSE: Máximo de reintentos alcanzado')
+          setError('Conexión perdida. Refresca la página para reconectar.')
+          return
+        }
+        
+        // Backoff exponencial: 5s, 10s, 20s
+        const delay = 5000 * Math.pow(2, reconnectAttempts)
+        reconnectAttempts++
+        
+        console.log(`SSE: Reintento ${reconnectAttempts}/${maxReconnectAttempts} en ${delay/1000}s`)
+        setTimeout(connectSSE, delay)
       }
     }
 
@@ -877,6 +1293,7 @@ function TaskTimeline({ agent, agentData, color }) {
 // 3. ACTIVITY CHARTS - Gráficos de uso de tokens y actividad por hora
 function ActivityCharts({ agentStatus }) {
   const [hourlyActivity, setHourlyActivity] = useState([])
+  const [loading, setLoading] = useState(true)
   const agentsData = agentStatus?.agents || {}
   
   // Obtener token para usar como dependencia del useEffect
@@ -923,11 +1340,14 @@ function ActivityCharts({ agentStatus }) {
           const data = await res.json()
           console.log('Activity data received:', data.hourly?.length, 'hours')
           setHourlyActivity(data.hourly || [])
+          setLoading(false)
         } else {
           console.warn('Activity fetch error:', res.status)
+          setLoading(false)
         }
       } catch (e) {
         console.warn('Error fetching hourly activity:', e.message)
+        setLoading(false)
       }
     }
     
@@ -970,6 +1390,12 @@ function ActivityCharts({ agentStatus }) {
   
   return (
     <div className="space-y-4">
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-retro-purple"></div>
+          <p className="text-xs text-gray-500 mt-2">Cargando datos de actividad...</p>
+        </div>
+      )}
       {/* Token Usage Chart */}
       <div className="bg-white/60 dark:bg-black/60 rounded-lg border border-retro-purple p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-3 sm:mb-4">
@@ -1065,60 +1491,92 @@ function ErrorNotifications({ agentsData, onAgentClick }) {
   const [dismissed, setDismissed] = useState(new Set())
   
   useEffect(() => {
+    const oneHourAgo = Date.now() - (60 * 60 * 1000)
+
     const newErrors = Object.entries(agentsData || {})
-      .filter(([id, data]) => data.status === 'error')
+      .filter(([id, data]) => {
+        // Only show if status is error AND error is recent (within last hour)
+        if (data.status !== 'error') return false
+        // If no lastError timestamp, check if session is recent
+        if (data.lastError) {
+          const errorTime = new Date(data.lastError).getTime()
+          return errorTime > oneHourAgo
+        }
+        // If no timestamp, only show if session was updated recently
+        if (data.sessionStartTime) {
+          const sessionTime = new Date(data.sessionStartTime).getTime()
+          return sessionTime > oneHourAgo
+        }
+        return false
+      })
       .map(([id, data]) => ({ id, ...data }))
-    
+
     // Filtrar errores no dismissidos
     const activeErrors = newErrors.filter(e => !dismissed.has(e.id))
     setErrors(activeErrors)
+
+    // DO NOT scroll - let user stay at their current position
+    // The page should not auto-scroll when errors appear
   }, [agentsData, dismissed])
   
+  // Auto-dismiss errors after 10 seconds
+  useEffect(() => {
+    if (errors.length === 0) return
+
+    const timer = setTimeout(() => {
+      setDismissed(prev => {
+        const newDismissed = new Set(prev)
+        errors.forEach(e => newDismissed.add(e.id))
+        return newDismissed
+      })
+    }, 10000) // 10 seconds
+
+    return () => clearTimeout(timer)
+  }, [errors])
+
   const dismissError = (id) => {
     setDismissed(prev => new Set([...prev, id]))
   }
-  
+
+  const dismissAll = () => {
+    setDismissed(prev => new Set([...prev, ...errors.map(e => e.id)]))
+  }
+
   if (errors.length === 0) return null
-  
+
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-16 right-2 left-2 md:left-auto md:right-4 z-40 space-y-2 md:max-w-xs" style={{ transform: 'translateZ(0)' }}>
       <AnimatePresence>
-        {errors.map((error) => (
+        {errors.slice(0, 2).map((error) => ( // Max 2 errors shown
           <motion.div
             key={error.id}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            className="bg-retro-red/20 border-2 border-retro-red rounded-lg p-3 max-w-sm"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-black/90 border-2 border-retro-red rounded-lg p-2 shadow-lg"
           >
-            <div className="flex items-start gap-2">
-              <AlertTriangle size={18} className="text-retro-red flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-retro-red font-bold text-sm">ERROR EN AGENTE</span>
-                  <button 
-                    onClick={() => dismissError(error.id)}
-                    className="text-gray-500 hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <p className="text-gray-800 dark:text-white text-xs mt-1">{error.name || error.id}</p>
-                <p className="text-gray-400 text-xs mt-1 truncate">{error.task || 'Error desconocido'}</p>
-                <button 
-                  onClick={() => {
-                    const agent = agents.find(a => a.id === error.id)
-                    if (agent) onAgentClick(agent)
-                  }}
-                  className="text-retro-red text-xs mt-2 hover:underline"
-                >
-                  Ver detalles →
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-retro-red flex-shrink-0" />
+              <span className="text-white text-xs font-bold flex-1 truncate">{error.id.replace('er-', '')}</span>
+              <button
+                onClick={() => dismissError(error.id)}
+                className="text-gray-400 hover:text-white p-2 -m-1 rounded bg-white/10"
+                aria-label="Cerrar error"
+              >
+                <X size={16} />
+              </button>
             </div>
           </motion.div>
         ))}
       </AnimatePresence>
+      {errors.length > 0 && (
+        <button
+          onClick={dismissAll}
+          className="text-xs text-white/70 hover:text-white bg-black/50 rounded px-3 py-1.5 block w-full"
+        >
+          Cerrar todos ({errors.length})
+        </button>
+      )}
     </div>
   )
 }
@@ -1131,11 +1589,15 @@ function ErrorNotifications({ agentsData, onAgentClick }) {
 function GlobalMetricsDashboard({ agentStatus }) {
   const [activeView, setActiveView] = useState('tokens') // 'tokens' | 'activity' | 'uptime'
   const [hourlyData, setHourlyData] = useState([])
+  const [loading, setLoading] = useState(true)
   
   useEffect(() => {
     async function fetchActivity() {
       const token = localStorage.getItem('jwt_token')
-      if (!token) return
+      if (!token) {
+        setLoading(false)
+        return
+      }
       
       try {
         const res = await fetch('/api/metrics/activity', {
@@ -1147,6 +1609,8 @@ function GlobalMetricsDashboard({ agentStatus }) {
         }
       } catch (e) {
         console.warn('Error fetching activity:', e)
+      } finally {
+        setLoading(false)
       }
     }
     
@@ -1155,34 +1619,47 @@ function GlobalMetricsDashboard({ agentStatus }) {
     return () => clearInterval(interval)
   }, [])
   
-  const agents = agentStatus?.agents || {}
+  const agentData = agentStatus?.agents || {}
   const metrics = agentStatus?.metrics || {}
   
   // Calcular métricas
-  const totalTokens = metrics?.tokens?.total || Object.values(agents).reduce((sum, a) => sum + (a.tokens?.total || 0), 0)
-  const inputTokens = metrics?.tokens?.input || Object.values(agents).reduce((sum, a) => sum + (a.tokens?.input || 0), 0)
-  const outputTokens = metrics?.tokens?.output || Object.values(agents).reduce((sum, a) => sum + (a.tokens?.output || 0), 0)
-  
-  const activeAgents = Object.values(agents).filter(a => a.status === 'running' || a.status === 'active').length
-  const idleAgents = Object.values(agents).filter(a => a.status === 'idle').length
-  const errorAgents = Object.values(agents).filter(a => a.status === 'error').length
-  
-  // Calcular uptime simulado (basado en actividad reciente)
-  const uptime = activeAgents > 0 ? 99.5 + (Math.random() * 0.5) : 95
+  const totalTokens = metrics?.tokens?.total || Object.values(agentData).reduce((sum, a) => sum + (a.tokens?.total || 0), 0)
+  const inputTokens = metrics?.tokens?.input || Object.values(agentData).reduce((sum, a) => sum + (a.tokens?.input || 0), 0)
+  const outputTokens = metrics?.tokens?.output || Object.values(agentData).reduce((sum, a) => sum + (a.tokens?.output || 0), 0)
+
+  const activeAgents = Object.values(agentData).filter(a => a.status === 'running' || a.status === 'active').length
+  const idleAgents = Object.values(agentData).filter(a => a.status === 'idle').length
+  const errorAgents = Object.values(agentData).filter(a => a.status === 'error').length
+
+  // Calcular uptime real desde datos del servidor
+  const calculateUptime = () => {
+    const agentUptimes = Object.values(agentData).map(a => a.uptime || 0).filter(u => u > 0)
+    if (agentUptimes.length === 0) return 0
+    const avgUptime = agentUptimes.reduce((a, b) => a + b, 0) / agentUptimes.length
+    // Convert hours to percentage (cap at 99.99% for very long uptimes)
+    return Math.min(99.99, avgUptime)
+  }
+  const uptime = calculateUptime()
   
   // Datos para gráfico de tokens por agente
-  const tokenByAgent = Object.entries(agents).map(([id, data]) => ({
+  const tokenByAgent = Object.entries(agentData).map(([id, data]) => ({
     name: id.replace('er-', ''),
     input: data.tokens?.input || 0,
     output: data.tokens?.output || 0,
     total: data.tokens?.total || 0,
-    color: agentsList.find(a => a.id === id)?.color || '#888'
+    color: agents.find(a => a.id === id)?.color || '#888'
   }))
   
   const maxToken = Math.max(...tokenByAgent.map(t => t.total), 1)
   
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-retro-purple"></div>
+          <p className="text-xs text-gray-500 mt-2">Cargando métricas globales...</p>
+        </div>
+      )}
       {/* Tabs de navegación */}
       <div className="flex gap-2">
         {[
@@ -1302,7 +1779,7 @@ function GlobalMetricsDashboard({ agentStatus }) {
             </div>
             
             <div className="flex items-end gap-1 h-32">
-              {hourlyData.length === 0 ? (
+              {!hourlyData || hourlyData.length === 0 ? (
                 Array.from({ length: 12 }, (_, i) => {
                   const hour = new Date()
                   hour.setHours(hour.getHours() - (11 - i))
@@ -1371,8 +1848,11 @@ function GlobalMetricsDashboard({ agentStatus }) {
             </div>
             
             <div className="space-y-3">
-              {Object.entries(agents).map(([id, data]) => {
-                const agentUptime = data.status === 'error' ? 0 : data.status === 'offline' ? 50 : 95 + Math.random() * 5
+              {Object.entries(agentData).map(([id, data]) => {
+                // Usar uptime real del servidor, con fallback
+                const agentUptime = data.uptime
+                  ? Math.min(99.99, data.uptime)
+                  : (data.status === 'error' ? 0 : data.status === 'offline' ? 0 : 0)
                 return (
                   <div key={id} className="flex items-center gap-3">
                     <div className="w-24 text-xs text-gray-400 capitalize">{id.replace('er-', '')}</div>
@@ -1403,34 +1883,51 @@ function GlobalMetricsDashboard({ agentStatus }) {
   )
 }
 
-// 2. ACTIVITY HEATMAP - Heatmap de actividad semanal
-function ActivityHeatmap({ agentStatus }) {
+// 2. ACTIVITY HEATMAP - Heatmap de actividad semanal (DATOS REALES)
+function ActivityHeatmap({ agentStatus, hourlyActivity = [], dailyActivity = [] }) {
   const [weeklyData, setWeeklyData] = useState([])
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {
-    // Generar datos de actividad simulados para los últimos 7 días
-    // En producción, esto vendría de una API que guarda el histórico
+    // Usar datos reales de actividad del API
     const days = []
     const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+    
+    // Safe hourly activity
+    const safeHourlyActivity = hourlyActivity || []
+    const todayActivity = safeHourlyActivity.reduce((sum, h) => sum + (h.activity || 0), 0)
+    const todayTokens = safeHourlyActivity.reduce((sum, h) => sum + (h.input || 0) + (h.output || 0), 0)
+    
+    // Safe daily activity - create a lookup map
+    const dailyMap = {}
+    ;(dailyActivity || []).forEach(d => {
+      dailyMap[d.date] = d
+    })
     
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
       const dateStr = date.toISOString().split('T')[0]
+      const isToday = dateStr === todayStr
       
-      // Simular actividad (en producción sería datos reales)
+      // Usar datos reales del API (dailyActivity) para todos los días
+      const dailyData = dailyMap[dateStr]
+      
+      // Si hay datos reales del API usarlos, si no usar datos de hoy
+      const hasRealData = dailyData && (dailyData.activity > 0 || dailyData.tokens > 0)
+      
       const dayData = {
         date: dateStr,
         dayName: date.toLocaleDateString('es-ES', { weekday: 'short' }),
         dayNum: date.getDate(),
-        activity: Math.floor(Math.random() * 100),
-        sessions: Math.floor(Math.random() * 10),
-        tokens: Math.floor(Math.random() * 50000),
-        agents: Object.keys(agentStatus?.agents || {}).map(id => ({
+        activity: hasRealData ? dailyData.activity : todayActivity,
+        sessions: hasRealData ? dailyData.sessions : Math.max(1, Math.floor(todayTokens / 5000)),
+        tokens: hasRealData ? dailyData.tokens : todayTokens,
+        agents: (agentStatus?.agents ? Object.keys(agentStatus.agents) : []).map(id => ({
           id,
-          active: Math.random() > 0.3,
-          tokens: Math.floor(Math.random() * 10000)
+          active: hasRealData ? dailyData.activity > 0 : (safeHourlyActivity.length > 0),
+          tokens: hasRealData ? Math.floor(dailyData.tokens / Math.max(1, Object.keys(agentStatus?.agents || {}).length)) : Math.floor(todayTokens / Math.max(1, Object.keys(agentStatus?.agents || {}).length))
         }))
       }
       days.push(dayData)
@@ -1438,7 +1935,7 @@ function ActivityHeatmap({ agentStatus }) {
     
     setWeeklyData(days)
     setLoading(false)
-  }, [agentStatus])
+  }, [agentStatus, hourlyActivity, dailyActivity])
   
   // Función para obtener color según nivel de actividad
   const getActivityColor = (level) => {
@@ -1514,7 +2011,7 @@ function ActivityHeatmap({ agentStatus }) {
             <div key={agentId} className="flex items-center gap-1 text-xs">
               <div 
                 className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: agentsList.find(a => a.id === agentId)?.color || '#888' }}
+                style={{ backgroundColor: agents.find(a => a.id === agentId)?.color || '#888' }}
               />
               <span className="text-gray-400 capitalize">{agentId.replace('er-', '')}</span>
             </div>
@@ -1616,8 +2113,8 @@ function EnhancedErrorNotifications({ agentsData, onAgentClick }) {
                   </div>
                   <button 
                     onClick={() => {
-                      const agent = agentsList.find(a => a.id === error.id)
-                      if (agent) onAgentClick(agent)
+                      // Use the error object directly - it already contains all agent data from agentsData
+                      onAgentClick({ id: error.id, ...error })
                       dismissError(error.id)
                     }}
                     className="text-white/80 hover:text-white text-xs underline ml-2"
@@ -2175,11 +2672,41 @@ function AgentDetail({ agent, agentData }) {
 }
 
 function App() {
+  
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms'
+  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms' | 'errors'
   const { status: agentStatus, loading: statusLoading } = useAgentStatus()
+  
+  // Fix 1: Define hourlyActivity and dailyActivity at App level for heatmap
+  const [hourlyActivity, setHourlyActivity] = useState([])
+  const [dailyActivity, setDailyActivity] = useState([])
+  
+  // Fetch hourly and daily activity data for heatmap
+  useEffect(() => {
+    async function fetchActivityData() {
+      const token = localStorage.getItem('jwt_token')
+      if (!token) return
+      
+      try {
+        const res = await fetch('/api/metrics/activity', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setHourlyActivity(data.hourly || [])
+          setDailyActivity(data.daily || [])
+        }
+      } catch (e) {
+        console.warn('Error fetching activity data:', e.message)
+      }
+    }
+    
+    fetchActivityData()
+    const interval = setInterval(fetchActivityData, 10000)
+    return () => clearInterval(interval)
+  }, [])
   
   // Mensajes: primero los reales del backend, luego fallback simulado
   const [agentMessages, setAgentMessages] = useState(() => {
@@ -2264,12 +2791,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white overflow-x-hidden">
-      {/* Error Notifications (FASE 2) */}
-      <ErrorNotifications 
-        agentsData={agentStatus?.agents} 
-        onAgentClick={handleErrorAgentClick}
-      />
-      
+      {/* Error Notifications - moved to Errors tab */}
+
       {/* Mobile-friendly header */}
       <header className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-black/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 flex items-center justify-between">
@@ -2299,7 +2822,8 @@ function App() {
               { id: 'metrics', label: 'Métricas', icon: BarChart3 },
               { id: 'heatmap', label: 'Heatmap', icon: Activity },
               { id: 'prediction', label: 'Predicción', icon: Zap },
-              { id: 'comms', label: 'Comms', icon: MessageSquare }
+              { id: 'comms', label: 'Comms', icon: MessageSquare },
+              { id: 'errors', label: 'Errores', icon: AlertTriangle }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -2348,6 +2872,7 @@ function App() {
             <AgentTerminal 
               messages={agentStatus?.communications || agentMessages} 
               onAgentClick={handleAgentClickFromTerminal}
+              agents={agents}
             />
 
             {/* Estado del sistema */}
@@ -2399,7 +2924,7 @@ function App() {
         {/* Heatmap Tab */}
         {activeTab === 'heatmap' && (
           <div className="space-y-4 sm:space-y-6">
-            <ActivityHeatmap agentStatus={agentStatus} />
+            <ActivityHeatmap agentStatus={agentStatus} hourlyActivity={hourlyActivity} dailyActivity={dailyActivity} />
           </div>
         )}
 
@@ -2413,15 +2938,78 @@ function App() {
         {/* Comms Tab */}
         {activeTab === 'comms' && (
           <div className="space-y-4 sm:space-y-6">
+            {/* Network Visualization */}
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-cyan p-4">
+              <h3 className="text-retro-cyan font-mono text-sm mb-4 flex items-center gap-2">
+                <Network size={16} />
+                MAPA DE COMUNICACIONES
+              </h3>
+              <div className="relative aspect-square max-h-[50vh] sm:max-h-80 bg-gray-900/50 rounded-lg overflow-auto">
+                <CommsNetwork
+                  communications={agentStatus?.communications || agentMessages}
+                  agents={agents}
+                  onAgentClick={handleAgentClickFromTerminal}
+                />
+              </div>
+            </div>
+            
             <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-green p-4">
               <h3 className="text-retro-green font-mono text-sm mb-4 flex items-center gap-2">
                 <MessageSquare size={16} />
-                COMUNICACIONES ENTRE AGENTES
+                REGISTRO DE COMUNICACIONES
               </h3>
               <AgentTerminal 
                 messages={agentStatus?.communications || agentMessages} 
                 onAgentClick={handleAgentClickFromTerminal}
+                agents={agents}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Errors Tab */}
+        {activeTab === 'errors' && (
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-red p-4">
+              <h3 className="text-retro-red font-mono text-sm mb-4 flex items-center gap-2">
+                <AlertTriangle size={16} />
+                ERRORES DE AGENTES
+              </h3>
+              {(() => {
+                const errorAgents = Object.entries(agentStatus?.agents || {})
+                  .filter(([id, data]) => data.status === 'error')
+                  .map(([id, data]) => ({ id, ...data }))
+
+                if (errorAgents.length === 0) {
+                  return (
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-8">
+                      <AlertTriangle size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No hay errores activos</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {errorAgents.map(error => (
+                      <div
+                        key={error.id}
+                        onClick={() => handleAgentClickFromTerminal({ id: error.id, ...error })}
+                        className="bg-retro-red/10 border border-retro-red/30 rounded-lg p-3 cursor-pointer hover:bg-retro-red/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={16} className="text-retro-red" />
+                          <span className="text-white font-bold">{error.id.replace('er-', '')}</span>
+                        </div>
+                        <p className="text-gray-400 text-xs mt-1">{error.task || 'Error desconocido'}</p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {error.lastError ? new Date(error.lastError).toLocaleString() : 'Sin timestamp'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
