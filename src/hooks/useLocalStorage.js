@@ -7,8 +7,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
  * @returns {[value, setValue]} - Valor actual y función para actualizar
  */
 export function useLocalStorage(key, initialValue) {
-  // Función para obtener el valor inicial
-  const getStoredValue = useCallback(() => {
+  // useState con función de inicialización (lazy initialization)
+  // Esto evita el error "Cannot access before initialization"
+  const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = localStorage.getItem(key)
       return item ? JSON.parse(item) : initialValue
@@ -16,9 +17,7 @@ export function useLocalStorage(key, initialValue) {
       console.warn(`Error reading localStorage key "${key}":`, error)
       return initialValue
     }
-  }, [key, initialValue])
-
-  const [storedValue, setStoredValue] = useState(getStoredValue)
+  })
 
   // Función para actualizar el valor
   const setValue = useCallback((value) => {

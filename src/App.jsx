@@ -443,10 +443,10 @@ const CommsNetwork = ({ communications = [], agents = [], onAgentClick }) => {
     connectionMap[key] = (connectionMap[key] || 0) + 1
   })
 
-  // Get positions for agents in a circle - always show all 5 agents
-  const allAgents = ['er-hineda', 'er-plan', 'er-coder', 'er-serve', 'er-pr']
-  const activeAgents = allAgents.filter(id => agentSet.has(id))
-  const displayAgents = activeAgents.length > 0 ? activeAgents : allAgents
+  // Use agents from API instead of hardcoded list
+  const allAgentIds = agents.map(a => a.id)
+  const activeAgents = allAgentIds.filter(id => agentSet.has(id))
+  const displayAgents = activeAgents.length > 0 ? activeAgents : allAgentIds
 
   const positions = {}
   const centerX = 50
@@ -463,41 +463,38 @@ const CommsNetwork = ({ communications = [], agents = [], onAgentClick }) => {
 
   const maxConnection = Math.max(...Object.values(connectionMap), 1)
 
-  // Get agent color
-  const getAgentColor = (id) => {
-    const colors = {
-      'er-hineda': '#22d3ee', // cyan
-      'er-plan': '#34d399',   // green
-      'er-coder': '#a78bfa',  // purple
-      'er-serve': '#f472b6',  // pink
-      'er-pr': '#fbbf24'      // yellow
+  // Get agent data from the agents array
+  const getAgentData = (id) => {
+    const agent = agents.find(a => a.id === id)
+    if (!agent) return { color: '#6b7280', emoji: '●', name: id }
+
+    // Parse color from agent object
+    let color = '#6b7280'
+    if (agent.glowColor) {
+      color = agent.glowColor
+    } else if (typeof agent.color === 'string') {
+      // Extract hex from Tailwind class if needed
+      const colorMap = {
+        'text-retro-pink': '#ec4899',
+        'text-retro-purple': '#8b5cf6',
+        'text-retro-cyan': '#06b6d4',
+        'text-retro-green': '#22c55e',
+        'text-retro-yellow': '#f59e0b',
+        'text-retro-orange': '#f97316',
+      }
+      color = colorMap[agent.color] || agent.glowColor || '#6b7280'
     }
-    return colors[id] || '#6b7280'
+
+    return {
+      color,
+      emoji: agent.emoji || '●',
+      name: agent.name || id
+    }
   }
 
-  // Get agent emoji
-  const getAgentEmoji = (id) => {
-    const emojis = {
-      'er-hineda': '🧉',
-      'er-plan': '📐',
-      'er-coder': '🤖',
-      'er-serve': '🌐',
-      'er-pr': '🔍'
-    }
-    return emojis[id] || '●'
-  }
-
-  // Get agent name
-  const getAgentName = (id) => {
-    const names = {
-      'er-hineda': 'Hineda',
-      'er-plan': 'Plan',
-      'er-coder': 'Coder',
-      'er-serve': 'Serve',
-      'er-pr': 'PR'
-    }
-    return names[id] || id
-  }
+  const getAgentColor = (id) => getAgentData(id).color
+  const getAgentEmoji = (id) => getAgentData(id).emoji
+  const getAgentName = (id) => getAgentData(id).name
 
   if (displayAgents.length === 0) {
     return (
@@ -766,7 +763,6 @@ const CommsNetwork = ({ communications = [], agents = [], onAgentClick }) => {
   )
 }
 
-// Task simulation data
 const generateTasks = (agentId) => {
   const tasksByAgent = {
     'er-hineda': [
@@ -793,7 +789,8 @@ const generateTasks = (agentId) => {
   return tasksByAgent[agentId] || []
 }
 
-const agents = [
+// Lista estática de agentes (fallback cuando no hay datos del API)
+const STATIC_AGENTS = [
   {
     id: 'er-hineda',
     name: 'er Hineda',
@@ -850,6 +847,38 @@ const agents = [
     image: '/avatar_er_pr.png'
   }
 ]
+
+// Función para convertir agente del API al formato del frontend
+function apiAgentToFrontend(agentId, agentData) {
+  // Colores por defecto para agentes dinámicos
+  const defaultColors = [
+    { color: 'text-retro-pink', borderColor: 'border-retro-pink', glowColor: '#ec4899' },
+    { color: 'text-retro-purple', borderColor: 'border-retro-purple', glowColor: '#8b5cf6' },
+    { color: 'text-retro-cyan', borderColor: 'border-retro-cyan', glowColor: '#06b6d4' },
+    { color: 'text-retro-green', borderColor: 'border-retro-green', glowColor: '#22c55e' },
+    { color: 'text-retro-yellow', borderColor: 'border-retro-yellow', glowColor: '#f59e0b' },
+    { color: 'text-retro-orange', borderColor: 'border-retro-orange', glowColor: '#f97316' },
+  ]
+  
+  const index = Object.keys(agentData || {}).indexOf(agentId)
+  const colorSet = defaultColors[index % defaultColors.length] || defaultColors[0]
+
+  // Intentar encontrar coincidencia en agentes estáticos
+  const staticMatch = STATIC_AGENTS.find(a => a.id === agentId)
+  
+  return {
+    id: agentId,
+    name: agentData?.name || staticMatch?.name || agentId,
+    emoji: agentData?.emoji || staticMatch?.emoji || '🧠',
+    description: agentData?.desc || agentData?.description || staticMatch?.description || `Agente ${agentId}`,
+    color: staticMatch?.color || colorSet.color,
+    borderColor: staticMatch?.borderColor || colorSet.borderColor,
+    glowColor: staticMatch?.glowColor || colorSet.glowColor,
+    role: staticMatch?.role || 'Agente',
+    image: agentData?.image || staticMatch?.image || null,
+    folder: agentData?.folder || agentId
+  }
+}
 
 const statusLabels = {
   idle: { text: 'ESPERANDO', color: 'text-gray-400' },
@@ -1405,7 +1434,7 @@ function TaskTimeline({ agent, agentData, color }) {
 }
 
 // 3. ACTIVITY CHARTS - Gráficos de uso de tokens y actividad por hora
-function ActivityCharts({ agentStatus }) {
+function ActivityCharts({ agentStatus, agents = [] }) {
   const [hourlyActivity, setHourlyActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const agentsData = agentStatus?.agents || {}
@@ -1698,7 +1727,7 @@ function ErrorNotifications({ agentsData, onAgentClick }) {
 // =============================================================================
 
 // 1. GLOBAL METRICS DASHBOARD - Panel de métricas global con gráficos completos
-function GlobalMetricsDashboard({ agentStatus }) {
+function GlobalMetricsDashboard({ agentStatus, agents = [] }) {
   const [activeView, setActiveView] = useState('tokens') // 'tokens' | 'activity' | 'uptime'
   const [hourlyData, setHourlyData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1996,7 +2025,7 @@ function GlobalMetricsDashboard({ agentStatus }) {
 }
 
 // 2. ACTIVITY HEATMAP - Heatmap de actividad semanal (DATOS REALES)
-function ActivityHeatmap({ agentStatus, hourlyActivity = [], dailyActivity = [] }) {
+function ActivityHeatmap({ agentStatus, hourlyActivity = [], dailyActivity = [], agents = [] }) {
   const [weeklyData, setWeeklyData] = useState([])
   const [loading, setLoading] = useState(true)
   
@@ -2789,9 +2818,7 @@ function App() {
   
   // Persistencia: último agente seleccionado
   const [lastSelectedAgentId, setLastSelectedAgentId] = useLastSelectedAgent()
-  const [selectedAgent, setSelectedAgent] = useState(() => {
-    return agents.find(a => a.id === lastSelectedAgentId) || agents[0]
-  })
+  const [selectedAgent, setSelectedAgent] = useState(null)
   
   const [currentTime, setCurrentTime] = useState(new Date())
   
@@ -2824,6 +2851,40 @@ function App() {
   }, [savedActiveDecoration])
   
   const { status: agentStatus, loading: statusLoading, error: statusError, connected, reconnect } = useAgentStatus()
+  
+  // Construir lista de agentes dinámicamente desde el API
+  // Si no hay datos del API, usar STATIC_AGENTS como fallback
+  const agents = useMemo(() => {
+    const apiAgents = agentStatus?.agents || {}
+    const apiAgentIds = Object.keys(apiAgents)
+
+    if (apiAgentIds.length > 0) {
+      // Convertir agentes del API al formato del frontend
+      return apiAgentIds.map(id => apiAgentToFrontend(id, apiAgents[id]))
+    }
+
+    // Fallback a lista estática
+    return STATIC_AGENTS
+  }, [agentStatus]) || STATIC_AGENTS // Fallback extra por seguridad
+  
+  // Estado para detectar cambio de agentes y resetear selectedAgent si es necesario
+  const [prevAgentIds, setPrevAgentIds] = useState(() => Object.keys(agentStatus?.agents || {}))
+  
+  // Actualizar selectedAgent si el agente seleccionado ya no existe en la nueva lista
+  useEffect(() => {
+    const currentAgentIds = Object.keys(agentStatus?.agents || {})
+    const currentAgentIdSet = new Set(currentAgentIds)
+    
+    // Inicializar selectedAgent si es null o si el agente seleccionado ya no existe
+    if (agents.length > 0 && (!selectedAgent || !currentAgentIdSet.has(selectedAgent.id))) {
+      // Buscar coincidencia por nombre o fallback al primero
+      const match = agents.find(a => 
+        a.id === lastSelectedAgentId || 
+        a.name.toLowerCase().includes(lastSelectedAgentId?.toLowerCase() || '')
+      )
+      setSelectedAgent(match || agents[0])
+    }
+  }, [agents, agentStatus, lastSelectedAgentId, selectedAgent])
   
   // Estados para nivel de usuario y animación de level up
   const [userLevelData, setUserLevelData] = useState(null)
@@ -2870,7 +2931,9 @@ function App() {
   
   // Persistencia: guardar agente seleccionado cuando cambie
   useEffect(() => {
-    setLastSelectedAgentId(selectedAgent.id)
+    if (selectedAgent) {
+      setLastSelectedAgentId(selectedAgent.id)
+    }
   }, [selectedAgent, setLastSelectedAgentId])
   
   // Persistencia: guardar decoración activa cuando compre o active
@@ -3133,7 +3196,7 @@ function App() {
             <AgentCard 
               key={agent.id} 
               agent={agent} 
-              isSelected={selectedAgent.id === agent.id} 
+              isSelected={selectedAgent?.id === agent.id} 
               onClick={() => setSelectedAgent(agent)}
               agentData={agentStatus?.agents}
               levelData={levelData}
@@ -3146,7 +3209,9 @@ function App() {
         {/* Main content area with sidebar - responsive: stacked on mobile, side-by-side on lg+ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2">
-            <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} levelData={levelData} />
+            {selectedAgent && (
+              <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} levelData={levelData} />
+            )}
           </div>
           
           {/* Sidebar content */}
@@ -3215,7 +3280,7 @@ function App() {
             </div>
 
             {/* Activity Charts (FASE 2) */}
-            <ActivityCharts agentStatus={agentStatus} />
+            <ActivityCharts agentStatus={agentStatus} agents={agents} />
           </div>
         </div>
           </>
@@ -3224,14 +3289,14 @@ function App() {
         {/* Heatmap Tab */}
         {activeTab === 'heatmap' && (
           <div className="space-y-4 sm:space-y-6">
-            <ActivityHeatmap agentStatus={agentStatus} hourlyActivity={hourlyActivity} dailyActivity={dailyActivity} />
+            <ActivityHeatmap agentStatus={agentStatus} hourlyActivity={hourlyActivity} dailyActivity={dailyActivity} agents={agents} />
           </div>
         )}
 
         {/* Prediction Tab */}
         {activeTab === 'prediction' && (
           <div className="space-y-4 sm:space-y-6">
-            <GlobalMetricsDashboard agentStatus={agentStatus} />
+            <GlobalMetricsDashboard agentStatus={agentStatus} agents={agents} />
           </div>
         )}
 
@@ -3420,7 +3485,8 @@ export {
   AgentCard,
   LoginScreen,
   generateTasks,
-  agents,
+  STATIC_AGENTS,
+  apiAgentToFrontend,
   statusLabels
 }
 

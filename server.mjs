@@ -116,14 +116,8 @@ import { join } from 'path'
 
 const AGENTS_DIR = process.env.AGENTS_DIR || '/home/ubuntu/.openclaw/agents'
 
-// Mapa de configuración de agentes (puede extenderse con config.json en cada carpeta)
-const AGENT_CONFIG = {
-  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', desc: 'Orquestador principal' },
-  'planner': { id: 'er-plan', name: 'er Plan', emoji: '📐', color: '#f59e0b', desc: 'Arquitecto y diseñador' },
-  'coder': { id: 'er-coder', name: 'er Coder', emoji: '🤖', color: '#8b5cf6', desc: 'Especialista en código' },
-  'netops': { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', desc: 'Especialista en redes' },
-  'pr-reviewer': { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', desc: 'Revisor de PRs' }
-}
+// NO hardcodear agentes - se detectan automáticamente desde /home/ubuntu/.openclaw/agents/
+// Esta variable se redefine en detectAgents() basada en las carpetas reales
 
 // Colores por defecto para agentes desconocidos
 const DEFAULT_COLORS = ['#ec4899', '#f59e0b', '#8b5cf6', '#06b6d4', '#22c55e', '#ef4444', '#14b8a6', '#f97316']
@@ -209,48 +203,85 @@ function loadAgentConfig(folder) {
   return null
 }
 
-// Función principal: detecta todos los agentes automáticamente
+// Función principal: detecta agentes desde la configuración de OpenClaw
+// Solo muestra los agentes que están en agents.list de openclaw.json
 function detectAgents() {
   const agents = []
+  const configPath = '/home/ubuntu/.openclaw/openclaw.json'
+  
+  // Cargar configuración de OpenClaw
+  let agentConfigList = []
+  if (existsSync(configPath)) {
+    try {
+      const configContent = readFileSync(configPath, 'utf-8')
+      const config = JSON.parse(configContent)
+      agentConfigList = config.agents?.list || []
+      console.log(`📋 Agentes configurados en OpenClaw: ${agentConfigList.map(a => a.id).join(', ')}`)
+    } catch (e) {
+      console.error('Error leyendo configuración de OpenClaw:', e.message)
+    }
+  } else {
+    console.warn('⚠️ No se encontró configuración de OpenClaw:', configPath)
+  }
   
   if (!existsSync(AGENTS_DIR)) {
     console.warn(`AGENTS_DIR no existe: ${AGENTS_DIR}`)
     return agents
   }
   
-  try {
-    const folders = readdirSync(AGENTS_DIR).filter(f => {
-      const path = join(AGENTS_DIR, f)
-      return statSync(path).isDirectory()
-    })
+  // Procesar solo los agentes que están en la configuración
+  agentConfigList.forEach((agentConfig, index) => {
+    const folder = agentConfig.id
     
-    folders.forEach((folder, index) => {
-      // Cargar config si existe
-      const customConfig = loadAgentConfig(folder)
-      
-      // Usar config predefinida o generar dinámicamente
-      const baseConfig = AGENT_CONFIG[folder] || {}
-      
-      const agent = {
-        id: customConfig?.id || baseConfig.id || `er-${folder}`,
-        name: customConfig?.name || baseConfig.name || `er ${folder.charAt(0).toUpperCase() + folder.slice(1)}`,
-        emoji: customConfig?.emoji || baseConfig.emoji || DEFAULT_EMOJIS[index % DEFAULT_EMOJIS.length],
-        color: customConfig?.color || baseConfig.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
-        folder: folder,
-        desc: customConfig?.description || customConfig?.desc || baseConfig.desc || `Agente ${folder}`,
-        image: '/agent-avatars.jpg',
-        // Estado se actualiza dinámicamente
-        status: detectAgentStatus(folder)
+    // Verificar que existe la carpeta del agente
+    const agentPath = join(AGENTS_DIR, folder)
+    if (!existsSync(agentPath)) {
+      console.log(`⚠️ Carpeta no encontrada para agente ${folder}, saltando...`)
+      return
+    }
+    
+    // Verificar que es un directorio
+    try {
+      if (!statSync(agentPath).isDirectory()) {
+        console.log(`⚠️ ${folder} no es un directorio, saltando...`)
+        return
       }
-      
-      agents.push(agent)
-    })
+    } catch (e) {
+      console.log(`⚠️ Error verificando ${folder}:`, e.message)
+      return
+    }
     
-    console.log(`✅ Detectados ${agents.length} agentes automáticamente:`, agents.map(a => a.name).join(', '))
-  } catch (error) {
-    console.error('Error detectando agentes:', error.message)
+    // Cargar config adicional si existe en la carpeta del agente
+    const customConfig = loadAgentConfig(folder)
+    
+    // Generar nombre legible del agente a partir del folder
+    const formatAgentName = (folderName) => {
+      const spaced = folderName.replace(/[-_]/g, ' ')
+      return spaced.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+    }
+    
+    const agent = {
+      id: agentConfig.id || folder,
+      name: agentConfig.name || customConfig?.name || formatAgentName(folder),
+      emoji: agentConfig.emoji || customConfig?.emoji || DEFAULT_EMOJIS[index % DEFAULT_EMOJIS.length],
+      color: agentConfig.color || customConfig?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      folder: folder,
+      desc: agentConfig.description || customConfig?.description || customConfig?.desc || `Agente ${folder}`,
+      image: '/agent-avatars.jpg',
+      // Estado se actualiza dinámicamente
+      status: detectAgentStatus(folder)
+    }
+    
+    agents.push(agent)
+  })
+  
+  if (agents.length === 0 && agentConfigList.length > 0) {
+    console.warn('⚠️ Ninguno de los agentes configurados tiene carpeta propia')
   }
   
+  console.log(`✅ Detectados ${agents.length} agentes desde configuración:`, agents.map(a => a.name).join(', '))
   return agents
 }
 
@@ -336,34 +367,93 @@ function extractCleanText(msg) {
   } else if (typeof msg.content === 'string') {
     text = msg.content
   }
-  text = text
-    .replace(/\[.*?\]\s*/g, '')
-    .replace(/`{1,3}/g, '')
-    .replace(/\n+/g, ' ')
-    .trim()
+  
+  // Limpiar metadatos no deseados de mensajes de usuario
+  // Primero normalizar newlines y espacios (incluyendo newlines dentro de JSON)
+  text = text.replace(/\s+/g, ' ')
+  
+  // Eliminar "Conversation info (untrusted metadata):" y todo el JSON asociado
+  // Esto captura desde "Conversation info" hasta el final del JSON (cierre de llave)
+  text = text.replace(/Conversation info \(untrusted metadata\): json \{[^}]+ conversation_label[^}]*\}/gi, '')
+  text = text.replace(/Conversation info \(untrusted metadata\): \{[^}]+ conversation_label[^}]*\}/gi, '')
+  // Eliminar bloques de código markdown que contengan JSON
+  text = text.replace(/```json\s*\{[^}]+\}\s*```/gi, '')
+  // Eliminar otros patrones de metadata comunes
+  text = text.replace(/Metadata: \{[^}]+\}/gi, '')
+  // Eliminar bloques JSON completos (anidados)
+  text = text.replace(/\{[^{}]*\{[^{}]*\}[^{}]*\}/g, '')
+  // Eliminar bloques JSON simples que puedan quedar
+  text = text.replace(/\{[^{}]+\}/g, '')
+  // Limpiar formato
+  text = text.replace(/\[.*?\]\s*/g, '')
+  text = text.replace(/`{1,3}/g, '')
+  text = text.replace(/\n+/g, ' ')
+  text = text.replace(/\s+/g, ' ')
+  text = text.trim()
+  
   return text.substring(0, 150)
 }
 
 // Detectar comunicaciones entre agentes
-function detectInterAgentCommunication(msg, agentFolder) {
-  const text = extractCleanText(msg).toLowerCase()
-  const agentMentions = {
-    'coder': ['coder', 'código', 'programar', 'implementar'],
-    'netops': ['netops', 'servidor', 'red', 'deploy', 'nginx'],
-    'pr-reviewer': ['pr', 'review', 'revisar', 'pull request'],
-    'main': ['main', 'principal', 'orquestador']
+// Esta función se genera dinámicamente en base a los agentes detectados
+function createInterAgentDetector(agentsList) {
+  // Crear mapa de keywords basado en los agentes reales
+  const agentMentions = {}
+  
+  for (const agent of agentsList) {
+    const folder = agent.folder
+    const id = agent.id
+    const keywords = []
+    
+    // Añadir el nombre del agente como keyword
+    keywords.push(folder.toLowerCase())
+    keywords.push(id.toLowerCase())
+    
+    // Añadir variaciones del nombre
+    const nameParts = folder.split(/[-_]/)
+    keywords.push(...nameParts.map(p => p.toLowerCase()))
+    
+    // Keywords específicas por tipo de agente
+    if (folder.includes('dream')) {
+      keywords.push('dream', 'principal', 'orquestador', 'coordinador')
+    }
+    if (folder.includes('worker') || folder.includes('programador')) {
+      keywords.push('programador', 'trabajador', 'worker', 'codigo', 'código', 'programar')
+    }
+    if (folder.includes('github-copilot') || folder.includes('claude')) {
+      keywords.push('copilot', 'claude', 'github', 'assistant')
+    }
+    if (folder.includes('main')) {
+      keywords.push('main', 'principal', 'orquestador')
+    }
+    
+    agentMentions[folder] = [...new Set(keywords)] // Eliminar duplicados
   }
-  for (const [agent, keywords] of Object.entries(agentMentions)) {
-    if (agent !== agentFolder) {
+  
+  // Retornar la función de detección
+  return function detectInterAgentCommunication(msg, agentFolder) {
+    const text = extractCleanText(msg).toLowerCase()
+    
+    for (const [targetFolder, keywords] of Object.entries(agentMentions)) {
+      // No detectar comunicación con uno mismo
+      if (targetFolder === agentFolder) continue
+      
       for (const kw of keywords) {
         if (text.includes(kw)) {
-          return { targetAgent: agent, keyword: kw }
+          // Encontrar el agente correspondiente al folder
+          const targetAgent = agentsList.find(a => a.folder === targetFolder)
+          if (targetAgent) {
+            return { targetAgent: targetAgent.id, keyword: kw }
+          }
         }
       }
     }
+    return null
   }
-  return null
 }
+
+// Crear la función de detección con los agentes actuales
+let detectInterAgentCommunication = createInterAgentDetector(agentsList)
 
 // Mapa de folder a agentId (generado dinámicamente desde agentsList)
 const folderToAgentId = agentsList.reduce((acc, agent) => {
