@@ -242,7 +242,7 @@ export function DecorationShop({
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-retro-yellow/20 px-3 py-1.5 rounded-lg border border-retro-yellow">
                 <span className="text-retro-yellow font-bold">{coins}</span>
-                <span className="text-xs text-retro-yellow">MONEDAS</span>
+                <span className="text-xs text-retro-yellow">LEUROS</span>
               </div>
               <button
                 onClick={onClose}

@@ -116,14 +116,146 @@ import { join } from 'path'
 
 const AGENTS_DIR = process.env.AGENTS_DIR || '/home/ubuntu/.openclaw/agents'
 
-// 5 agentes - cada uno con su carpeta
-const agentsList = [
-  { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', folder: 'main', desc: 'Orquestador principal', image: '/agent-avatars.jpg' },
-  { id: 'er-plan', name: 'er Plan', emoji: '📐', color: '#f59e0b', folder: 'planner', desc: 'Arquitecto y diseñador', image: '/agent-avatars.jpg' },
-  { id: 'er-coder', name: 'er Coder', emoji: '🤖', color: '#8b5cf6', folder: 'coder', desc: 'Especialista en código', image: '/agent-avatars.jpg' },
-  { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', folder: 'netops', desc: 'Especialista en redes', image: '/agent-avatars.jpg' },
-  { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', folder: 'pr-reviewer', desc: 'Revisor de PRs', image: '/agent-avatars.jpg' }
-]
+// Mapa de configuración de agentes (puede extenderse con config.json en cada carpeta)
+const AGENT_CONFIG = {
+  'main': { id: 'er-hineda', name: 'er Hineda', emoji: '🧉', color: '#ec4899', desc: 'Orquestador principal' },
+  'planner': { id: 'er-plan', name: 'er Plan', emoji: '📐', color: '#f59e0b', desc: 'Arquitecto y diseñador' },
+  'coder': { id: 'er-coder', name: 'er Coder', emoji: '🤖', color: '#8b5cf6', desc: 'Especialista en código' },
+  'netops': { id: 'er-serve', name: 'er Serve', emoji: '🌐', color: '#06b6d4', desc: 'Especialista en redes' },
+  'pr-reviewer': { id: 'er-pr', name: 'er PR', emoji: '🔍', color: '#22c55e', desc: 'Revisor de PRs' }
+}
+
+// Colores por defecto para agentes desconocidos
+const DEFAULT_COLORS = ['#ec4899', '#f59e0b', '#8b5cf6', '#06b6d4', '#22c55e', '#ef4444', '#14b8a6', '#f97316']
+const DEFAULT_EMOJIS = ['🧠', '⚡', '🔧', '🌐', '📝', '🎯', '💡', '🚀']
+
+// Función para detectar el estado del agente según actividad
+function detectAgentStatus(folder) {
+  const sessionsDir = join(AGENTS_DIR, folder, 'sessions')
+  
+  // Si no existe la carpeta del agente, está offline
+  if (!existsSync(join(AGENTS_DIR, folder))) {
+    return 'offline'
+  }
+  
+  if (!existsSync(sessionsDir)) {
+    return 'idle'
+  }
+  
+  try {
+    const files = readdirSync(sessionsDir)
+      .filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+    
+    if (files.length === 0) {
+      return 'idle'
+    }
+    
+    // Buscar sesiones recientes (últimos 5 minutos)
+    const now = Date.now()
+    const FIVE_MINUTES = 5 * 60 * 1000
+    
+    for (const file of files) {
+      const filePath = join(sessionsDir, file)
+      const stats = statSync(filePath)
+      const fileAge = now - stats.mtime.getTime()
+      
+      if (fileAge < FIVE_MINUTES) {
+        // Verificar si hay actividad reciente en el archivo
+        const content = readFileSync(filePath, 'utf-8')
+        const lines = content.trim().split('\n').filter(l => l.trim())
+        
+        if (lines.length > 0) {
+          const lastLine = lines[lines.length - 1]
+          try {
+            const entry = JSON.parse(lastLine)
+            const entryAge = now - new Date(entry.timestamp).getTime()
+            
+            if (entryAge < FIVE_MINUTES) {
+              return 'running'
+            }
+          } catch (e) {
+            // Ignorar errores de parseo
+          }
+        }
+      }
+    }
+    
+    // Hay sesiones pero ninguna reciente
+    return 'active'
+  } catch (error) {
+    console.error(`Error detecting status for ${folder}:`, error.message)
+    return 'idle'
+  }
+}
+
+// Función para cargar configuración de agente desde archivo (si existe)
+function loadAgentConfig(folder) {
+  const configPaths = [
+    join(AGENTS_DIR, folder, 'agent', 'config.json'),
+    join(AGENTS_DIR, folder, 'config.json'),
+    join(AGENTS_DIR, folder, 'agent', 'settings.json')
+  ]
+  
+  for (const configPath of configPaths) {
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, 'utf-8')
+        return JSON.parse(content)
+      } catch (e) {
+        // Ignorar errores de lectura/parseo
+      }
+    }
+  }
+  return null
+}
+
+// Función principal: detecta todos los agentes automáticamente
+function detectAgents() {
+  const agents = []
+  
+  if (!existsSync(AGENTS_DIR)) {
+    console.warn(`AGENTS_DIR no existe: ${AGENTS_DIR}`)
+    return agents
+  }
+  
+  try {
+    const folders = readdirSync(AGENTS_DIR).filter(f => {
+      const path = join(AGENTS_DIR, f)
+      return statSync(path).isDirectory()
+    })
+    
+    folders.forEach((folder, index) => {
+      // Cargar config si existe
+      const customConfig = loadAgentConfig(folder)
+      
+      // Usar config predefinida o generar dinámicamente
+      const baseConfig = AGENT_CONFIG[folder] || {}
+      
+      const agent = {
+        id: customConfig?.id || baseConfig.id || `er-${folder}`,
+        name: customConfig?.name || baseConfig.name || `er ${folder.charAt(0).toUpperCase() + folder.slice(1)}`,
+        emoji: customConfig?.emoji || baseConfig.emoji || DEFAULT_EMOJIS[index % DEFAULT_EMOJIS.length],
+        color: customConfig?.color || baseConfig.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+        folder: folder,
+        desc: customConfig?.description || customConfig?.desc || baseConfig.desc || `Agente ${folder}`,
+        image: '/agent-avatars.jpg',
+        // Estado se actualiza dinámicamente
+        status: detectAgentStatus(folder)
+      }
+      
+      agents.push(agent)
+    })
+    
+    console.log(`✅ Detectados ${agents.length} agentes automáticamente:`, agents.map(a => a.name).join(', '))
+  } catch (error) {
+    console.error('Error detectando agentes:', error.message)
+  }
+  
+  return agents
+}
+
+// Generar lista de agentes dinámicamente al iniciar
+let agentsList = detectAgents()
 
 // Palabras clave que indican ruido de herramientas
 const NOISE_KEYWORDS = [
@@ -233,14 +365,11 @@ function detectInterAgentCommunication(msg, agentFolder) {
   return null
 }
 
-// Mapa de folder a agentId
-const folderToAgentId = {
-  'main': 'er-hineda',
-  'planner': 'er-plan',
-  'coder': 'er-coder',
-  'netops': 'er-serve',
-  'pr-reviewer': 'er-pr'
-}
+// Mapa de folder a agentId (generado dinámicamente desde agentsList)
+const folderToAgentId = agentsList.reduce((acc, agent) => {
+  acc[agent.folder] = agent.id
+  return acc
+}, {})
 
 // Detectar sesiones spawn
 function detectSessionSpawns(agentFolder) {
@@ -1120,6 +1249,65 @@ app.get('/api/events', (req, res) => {
     clearInterval(interval)
     console.log(`📡 Cliente SSE desconectado: ${user.username}`)
   })
+})
+
+// Levels API - Sistema de niveles
+app.get('/api/levels', authenticateToken, (req, res) => {
+  // Datos de niveles hardcodeados por ahora
+  // En el futuro, estos vendrán de una base de datos
+  const levels = {
+    user: {
+      level: 1,
+      currentXP: 0,
+      xpForNextLevel: 100,
+      totalXP: 0,
+      coins: 50,
+      rank: 'Novato'
+    },
+    // Configuración de niveles
+    config: {
+      maxLevel: 10,
+      xpPerLevel: [0, 100, 250, 500, 850, 1300, 1900, 2700, 3800, 5500, 8000],
+      rewards: {
+        1: { coins: 50 },
+        2: { coins: 75 },
+        3: { coins: 100 },
+        4: { coins: 150 },
+        5: { coins: 200 },
+        6: { coins: 300 },
+        7: { coins: 400 },
+        8: { coins: 500 },
+        9: { coins: 750 },
+        10: { coins: 1000 }
+      },
+      rankNames: {
+        1: 'Novato',
+        2: 'Aprendiz',
+        3: 'Explorador',
+        4: 'Investigador',
+        5: 'Especialista',
+        6: 'Experto',
+        7: 'Maestro',
+        8: 'Veterano',
+        9: 'Élite',
+        10: 'Legendario'
+      },
+      levelColors: {
+        1: '#10b981',
+        2: '#34d399',
+        3: '#14b8a6',
+        4: '#06b6d4',
+        5: '#3b82f6',
+        6: '#6366f1',
+        7: '#8b5cf6',
+        8: '#a855f7',
+        9: '#f59e0b',
+        10: '#eab308'
+      }
+    }
+  }
+  
+  res.json(levels)
 })
 
 // Health check

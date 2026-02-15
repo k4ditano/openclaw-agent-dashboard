@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare, Server, Gauge, TrendingUp, CalendarDays, ShoppingCart } from 'lucide-react'
 
@@ -9,6 +9,11 @@ import { CoinDisplay } from './components/CoinDisplay'
 import { LevelUpAnimation } from './components/LevelUpAnimation'
 import { DecorationShop, getDecorationById, useDecorations } from './components/DecorationShop'
 import { AgentCustomizationPanel } from './components/AgentCustomizationPanel'
+import { Tooltip, HelpIcon, InfoBadge } from './components/Tooltip'
+import { IdleAnimation, MaxLevelEffects, LevelProgressGlow } from './components/LevelEffects'
+
+// Hooks de persistencia
+import { useLocalStorage, useLastSelectedAgent, useLastActiveTab, useActiveDecoration, useOwnedDecorations, useUIPreferences } from './hooks/useLocalStorage'
 
 // =============================================================================
 // THEME CONTEXT - Dark/Light Theme
@@ -946,132 +951,159 @@ function useAgentStatus() {
   const [error, setError] = useState(null)
   const [connected, setConnected] = useState(false)
   const eventSourceRef = useRef(null)
+  const reconnectAttemptsRef = useRef(0)
+  const reconnectTimeoutRef = useRef(null)
 
-  useEffect(() => {
-    const token = localStorage.getItem('jwt_token')
-    
-    // Si no hay token, intentar con fallback
-    if (!token) {
-      setLoading(false)
-      return
+  // Función para reconectar manualmente
+  const reconnect = useCallback(() => {
+    console.log('Manual reconnect triggered')
+    reconnectAttemptsRef.current = 0
+    setError(null)
+    setConnected(false)
+
+    // Cerrar conexión existente
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
     }
 
-    // Función para obtener datos iniciales
-    async function fetchInitialStatus() {
+    // Limpiar timeout anterior
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
+
+    // Reintentar inmediatamente
+    const token = localStorage.getItem('jwt_token')
+    if (token) {
+      connectSSE(token)
+    }
+  }, [])
+
+  // Función para obtener datos iniciales
+  async function fetchInitialStatus(authToken) {
+    try {
+      const res = await fetch('/api/metrics/agent-status', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      })
+
+      if (res.ok) {
+        setStatus(await res.json())
+        setError(null)
+      } else if (res.status === 401 || res.status === 403) {
+        // Token expirado, limpiar
+        localStorage.removeItem('jwt_token')
+        localStorage.removeItem('jwt_expiry')
+        setError('Sesión expirada')
+      }
+    } catch (e) {
+      console.warn('Error fetching initial status:', e.message)
+      // Fallback a archivo estático
       try {
-        const res = await fetch('/api/metrics/agent-status', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        
-        if (res.ok) {
-          setStatus(await res.json())
-          setError(null)
-        } else if (res.status === 401 || res.status === 403) {
-          // Token expirado, limpiar
-          localStorage.removeItem('jwt_token')
-          localStorage.removeItem('jwt_expiry')
-          setError('Sesión expirada')
+        const staticRes = await fetch('/agent-status.json')
+        if (staticRes.ok) {
+          setStatus(await staticRes.json())
+        }
+      } catch {}
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Función para conectar a SSE
+  function connectSSE(authToken) {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
+
+    const eventSource = new EventSource(`/api/events?token=${authToken}`)
+    eventSourceRef.current = eventSource
+
+    eventSource.onopen = () => {
+      setConnected(true)
+      setError(null)
+      reconnectAttemptsRef.current = 0 // Reset counter on successful connection
+    }
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        if (data.type === 'connected') {
+          // Evento de conexión recibido
+        } else if (data.type === 'update') {
+          // Actualizar estado con datos de SSE
+          setStatus({
+            generatedAt: data.timestamp,
+            agents: data.agents,
+            communications: data.communications,
+            metrics: data.metrics
+          })
+        } else if (data.type === 'error') {
+          console.warn('SSE error:', data.error)
+          setError(data.error)
         }
       } catch (e) {
-        console.warn('Error fetching initial status:', e.message)
-        // Fallback a archivo estático
-        try {
-          const staticRes = await fetch('/agent-status.json')
-          if (staticRes.ok) {
-            setStatus(await staticRes.json())
-          }
-        } catch {}
-      } finally {
-        setLoading(false)
+        console.error('Error parsing SSE data:', e)
       }
     }
 
-    // Conectar a SSE para tiempo real
-    function connectSSE() {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
+    const maxReconnectAttempts = 10
+
+    eventSource.onerror = (err) => {
+      console.warn('SSE error, reconectando...', err)
+      setConnected(false)
+      eventSource.close()
+
+      // Verificar token antes de reintentar
+      const currentToken = localStorage.getItem('jwt_token')
+      if (!currentToken) {
+        console.warn('SSE: Token no disponible, no se reconecta')
+        setError('Sesión expirada')
+        return
       }
 
-      const eventSource = new EventSource(`/api/events?token=${token}`)
-      eventSourceRef.current = eventSource
-
-      eventSource.onopen = () => {
-        console.log('📡 SSE conectado')
-        setConnected(true)
-        setError(null)
+      // Limitar reintentos (usar el ref counter)
+      if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.warn('SSE: Máximo de reintentos alcanzado')
+        setError('Conexión perdida. Toca "Reconectar" para intentarlo de nuevo.')
+        return
       }
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          
-          if (data.type === 'connected') {
-            console.log('📡 Evento de conexión recibido')
-          } else if (data.type === 'update') {
-            // Actualizar estado con datos de SSE
-            setStatus({
-              generatedAt: data.timestamp,
-              agents: data.agents,
-              communications: data.communications,
-              metrics: data.metrics
-            })
-          } else if (data.type === 'error') {
-            console.warn('SSE error:', data.error)
-            setError(data.error)
-          }
-        } catch (e) {
-          console.error('Error parsing SSE data:', e)
-        }
-      }
+      // Backoff exponencial: 5s, 10s, 20s
+      const delay = 5000 * Math.pow(2, reconnectAttemptsRef.current)
+      reconnectAttemptsRef.current++
 
-      // Contador de reintentos con backoff exponencial
-      let reconnectAttempts = 0
-      const maxReconnectAttempts = 3
-      
-      eventSource.onerror = (err) => {
-        console.warn('SSE error, reconectando...', err)
-        setConnected(false)
-        eventSource.close()
-        
-        // Verificar token antes de reintentar
-        const currentToken = localStorage.getItem('jwt_token')
-        if (!currentToken) {
-          console.warn('SSE: Token no disponible, no se reconecta')
-          setError('Sesión expirada')
-          return
-        }
-        
-        // Limitar reintentos
-        if (reconnectAttempts >= maxReconnectAttempts) {
-          console.warn('SSE: Máximo de reintentos alcanzado')
-          setError('Conexión perdida. Refresca la página para reconectar.')
-          return
-        }
-        
-        // Backoff exponencial: 5s, 10s, 20s
-        const delay = 5000 * Math.pow(2, reconnectAttempts)
-        reconnectAttempts++
-        
-        console.log(`SSE: Reintento ${reconnectAttempts}/${maxReconnectAttempts} en ${delay/1000}s`)
-        setTimeout(connectSSE, delay)
-      }
+      console.log(`SSE: Reintento ${reconnectAttemptsRef.current}/${maxReconnectAttempts} en ${delay}ms`)
+
+      // Reintentar conexión
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectSSE(currentToken)
+      }, delay)
     }
+  }
 
-    // Cargar datos iniciales
-    fetchInitialStatus()
-    
-    // Conectar SSE
-    connectSSE()
+  // Inicializar
+  useEffect(() => {
+    const token = localStorage.getItem('jwt_token')
+    if (token) {
+      fetchInitialStatus(token)
+      connectSSE(token)
+    } else {
+      setLoading(false)
+    }
 
     // Cleanup al desmontar
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { status, loading, error, connected }
+  return { status, loading, error, connected, reconnect }
 }
 
 function AgentCard({ agent, isSelected, onClick, agentData, levelData, decoration }) {
@@ -1163,29 +1195,33 @@ function AgentCard({ agent, isSelected, onClick, agentData, levelData, decoratio
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         <PixelCreature type={agent.id} size={40} sm={48} md={64} isTalking={data.status === 'running'} image={agent.image} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          {/* Primera línea: Nombre + Estado (separados para evitar overlap) */}
+          <div className="flex items-center justify-between gap-2">
             <h3 className={`text-sm sm:text-base md:text-lg font-bold ${agent.color} truncate`}>{agent.name}</h3>
-            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
+            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap z-20 relative ${getStatusClass(data.status)}`}>
               {data.status?.toUpperCase() || 'OFFLINE'}
             </span>
-            {/* Level Badge */}
+          </div>
+          {/* Segunda línea: Level Badge + Level Progress Bar (separada del estado) */}
+          <div className="flex items-center gap-2 mt-2">
+            {/* Level Badge - always visible, no tooltip */}
             {userLevel.level && (
-              <LevelBadge level={userLevel.level} size="sm" />
+              <LevelBadge level={userLevel.level} size="sm" showTooltip={false} />
+            )}
+            {/* Level Progress Bar - solo visible en md+ */}
+            {userLevel.level && userLevel.xpForNextLevel && (
+              <div className="flex-1 hidden md:block">
+                <LevelProgressBar 
+                  currentXP={userLevel.currentXP} 
+                  xpForNextLevel={userLevel.xpForNextLevel}
+                  level={userLevel.level}
+                  showLabel={false}
+                  size="sm"
+                />
+              </div>
             )}
           </div>
-          <p className="text-xs text-gray-500 truncate hidden sm:block">{data.task || 'Sin actividad'}</p>
-          {/* Level Progress Bar */}
-          {userLevel.level && userLevel.xpForNextLevel && (
-            <div className="hidden md:block mt-1">
-              <LevelProgressBar 
-                currentXP={userLevel.currentXP} 
-                xpForNextLevel={userLevel.xpForNextLevel}
-                level={userLevel.level}
-                showLabel={false}
-                size="sm"
-              />
-            </div>
-          )}
+          <p className="text-xs text-gray-500 truncate hidden sm:block mt-1">{data.task || 'Sin actividad'}</p>
         </div>
         <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
           <div className={`text-base sm:text-xl font-bold ${agent.color}`}>{data.progress || 0}%</div>
@@ -1406,7 +1442,6 @@ function ActivityCharts({ agentStatus }) {
       }
       
       if (!currentToken) {
-        console.log('No token available for activity fetch')
         return
       }
       
@@ -1416,7 +1451,6 @@ function ActivityCharts({ agentStatus }) {
         })
         if (res.ok) {
           const data = await res.json()
-          console.log('Activity data received:', data.hourly?.length, 'hours')
           setHourlyActivity(data.hourly || [])
           setLoading(false)
         } else {
@@ -1437,31 +1471,6 @@ function ActivityCharts({ agentStatus }) {
     
     // Refresh cada 10 segundos
     const interval = setInterval(fetchHourlyActivity, 10000)
-    return () => clearInterval(interval)
-  }, [])
-  
-  // Fetch de datos de niveles
-  useEffect(() => {
-    async function fetchLevelData() {
-      const token = localStorage.getItem('jwt_token')
-      if (!token) return
-      
-      try {
-        const res = await fetch('/api/levels', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setLevelData(data)
-        }
-      } catch (error) {
-        console.error('Error fetching level data:', error)
-      }
-    }
-    
-    fetchLevelData()
-    // Refresh cada 30 segundos
-    const interval = setInterval(fetchLevelData, 30000)
     return () => clearInterval(interval)
   }, [])
   
@@ -2619,8 +2628,9 @@ function LogModal({ agent, logs, onClose }) {
 }
 
 // Agent Detail with Terminal Logs, Search & Timeline (FASE 2)
-function AgentDetail({ agent, agentData }) {
+function AgentDetail({ agent, agentData, levelData }) {
   const data = agentData?.[agent.id] || {}
+  const userLevel = levelData?.user || {}
   const logs = data.logs || []
   const [expanded, setExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -2671,24 +2681,19 @@ function AgentDetail({ agent, agentData }) {
               </div>
               <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1 truncate">{data.task || 'Sin actividad'}</p>
             </div>
-            {/* Progress ring - smaller on mobile */}
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0">
-              <svg className="w-full h-full -rotate-90">
-                <circle cx="50%" cy="50%" r="45%" stroke="white/10" strokeWidth="4" fill="none" />
-                <circle 
-                  cx="50%" cy="50%" r="45%" 
-                  stroke={data.status === 'error' ? '#ef4444' : agent.glowColor} 
-                  strokeWidth="4" 
-                  fill="none"
-                  strokeDasharray={`${(data.progress || 0) * 2.83} 283`}
-                  className="transition-all duration-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold" style={{ color: data.status === 'error' ? '#ef4444' : agent.glowColor }}>
-                {data.progress || 0}%
-              </span>
-            </div>
           </div>
+          {/* Progress - below header info, not overlapping */}
+          {userLevel.level && userLevel.xpForNextLevel && (
+            <div className="w-full mt-3">
+              <LevelProgressBar 
+                currentXP={userLevel.currentXP} 
+                xpForNextLevel={userLevel.xpForNextLevel}
+                level={userLevel.level}
+                showLabel={true}
+                size="sm"
+              />
+            </div>
+          )}
         </div>
 
         {/* Terminal Logs - manual scroll + search (FASE 2) */}
@@ -2777,9 +2782,23 @@ function AgentDetail({ agent, agentData }) {
 function App() {
   
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [selectedAgent, setSelectedAgent] = useState(agents[0])
+  
+  // Persistencia: última pestaña activa
+  const [lastActiveTab, setLastActiveTab] = useLastActiveTab()
+  const [activeTab, setActiveTab] = useState(lastActiveTab)
+  
+  // Persistencia: último agente seleccionado
+  const [lastSelectedAgentId, setLastSelectedAgentId] = useLastSelectedAgent()
+  const [selectedAgent, setSelectedAgent] = useState(() => {
+    return agents.find(a => a.id === lastSelectedAgentId) || agents[0]
+  })
+  
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms' | 'errors' | 'shop'
+  
+  // Persistencia: decoración activa y preferencias UI
+  const [savedActiveDecoration, setSavedActiveDecoration] = useActiveDecoration()
+  const [savedOwnedDecorations, setSavedOwnedDecorations] = useOwnedDecorations()
+  const { preferences: uiPreferences } = useUIPreferences()
   
   // Estados para decoraciones
   const [showShop, setShowShop] = useState(false)
@@ -2791,8 +2810,20 @@ function App() {
     deactivateDecoration,
     setOwnedDecorations,
     setActiveDecoration
-  } = useDecorations([])
-  const { status: agentStatus, loading: statusLoading } = useAgentStatus()
+  } = useDecorations(savedOwnedDecorations)
+  
+  // Sincronizar decoraciones guardadas con el estado
+  useEffect(() => {
+    setOwnedDecorations(savedOwnedDecorations)
+  }, [savedOwnedDecorations])
+
+  useEffect(() => {
+    if (savedActiveDecoration) {
+      setActiveDecoration(savedActiveDecoration)
+    }
+  }, [savedActiveDecoration])
+  
+  const { status: agentStatus, loading: statusLoading, error: statusError, connected, reconnect } = useAgentStatus()
   
   // Estados para nivel de usuario y animación de level up
   const [userLevelData, setUserLevelData] = useState(null)
@@ -2831,6 +2862,52 @@ function App() {
     const interval = setInterval(fetchActivityData, 10000)
     return () => clearInterval(interval)
   }, [])
+  
+  // Persistencia: guardar pestaña activa cuando cambie
+  useEffect(() => {
+    setLastActiveTab(activeTab)
+  }, [activeTab, setLastSelectedAgentId])
+  
+  // Persistencia: guardar agente seleccionado cuando cambie
+  useEffect(() => {
+    setLastSelectedAgentId(selectedAgent.id)
+  }, [selectedAgent, setLastSelectedAgentId])
+  
+  // Persistencia: guardar decoración activa cuando compre o active
+  const handleActivateDecoration = (decorationId) => {
+    activateDecoration(decorationId)
+    setSavedActiveDecoration(decorationId)
+  }
+  
+  const handleDeactivateDecoration = () => {
+    deactivateDecoration()
+    setSavedActiveDecoration(null)
+  }
+  
+  const handleBuyDecoration = (decoration) => {
+    // Verificar que el usuario tiene suficientes Leuros
+    const currentCoins = levelData?.user?.coins || 0
+    if (currentCoins < decoration.price) {
+      alert('No tienes suficientes Leuros para comprar esta decoración')
+      return
+    }
+    
+    // Decrementar los Leuros
+    const newCoins = currentCoins - decoration.price
+    
+    // Actualizar el estado local
+    setLevelData(prev => ({
+      ...prev,
+      user: {
+        ...prev.user,
+        coins: newCoins
+      }
+    }))
+    
+    // Añadir la decoración al inventario
+    buyDecoration(decoration)
+    setSavedOwnedDecorations(prev => [...prev, decoration.id])
+  }
   
   // Fetch level data
   useEffect(() => {
@@ -2931,7 +3008,7 @@ function App() {
           
           // Detectar cambio de nivel usando ref (evita bucle infinito)
           if (previousLevelRef.current !== null && newLevel > previousLevelRef.current) {
-            // Calcular monedas ganadas (ejemplo: 50 monedas por nivel subido)
+            // Calcular Leuros ganados (ejemplo: 50 Leuros por nivel subido)
             const levelsGained = newLevel - previousLevelRef.current
             const coinsEarned = levelsGained * 50
             
@@ -3069,7 +3146,7 @@ function App() {
         {/* Main content area with sidebar - responsive: stacked on mobile, side-by-side on lg+ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <div className="lg:col-span-2">
-            <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} />
+            <AgentDetail agent={selectedAgent} agentData={agentStatus?.agents} levelData={levelData} />
           </div>
           
           {/* Sidebar content */}
@@ -3087,6 +3164,23 @@ function App() {
                 <Activity size={14} sm={16} />
                 ESTADO DEL SISTEMA
               </h3>
+              {/* Connection status and reconnect button */}
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-retro-green animate-pulse' : 'bg-retro-red'}`} />
+                  <span className={`text-xs font-mono ${connected ? 'text-retro-green' : 'text-retro-red'}`}>
+                    {connected ? 'CONECTADO' : 'DESCONECTADO'}
+                  </span>
+                </div>
+                {!connected && (
+                  <button
+                    onClick={reconnect}
+                    className="text-xs px-2 py-1 bg-retro-cyan/20 text-retro-cyan rounded border border-retro-cyan/50 hover:bg-retro-cyan/30 transition-colors"
+                  >
+                    Reconectar
+                  </button>
+                )}
+              </div>
               {[
                 { label: 'Gateway', value: 'ONLINE', color: 'text-retro-green' },
                 { label: 'Agentes Activos', value: agentStatus?.metrics?.activeAgents ?? Object.values(agentStatus?.agents || {}).filter(a => a.status === 'running' || a.status === 'active').length, color: 'text-retro-cyan' },
@@ -3145,12 +3239,12 @@ function App() {
         {activeTab === 'comms' && (
           <div className="space-y-4 sm:space-y-6">
             {/* Network Visualization */}
-            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-cyan p-4">
-              <h3 className="text-retro-cyan font-mono text-sm mb-4 flex items-center gap-2">
-                <Network size={16} />
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-cyan p-3 sm:p-4">
+              <h3 className="text-retro-cyan font-mono text-xs sm:text-sm mb-2 sm:mb-4 flex items-center gap-2">
+                <Network size={14} sm={16} />
                 MAPA DE COMUNICACIONES
               </h3>
-              <div className="relative aspect-square max-h-[50vh] sm:max-h-80 bg-gray-900/50 rounded-lg overflow-auto">
+              <div className="relative h-40 sm:h-48 md:h-56 lg:h-64 bg-gray-900/50 rounded-lg overflow-hidden flex items-center justify-center">
                 <CommsNetwork
                   communications={agentStatus?.communications || agentMessages}
                   agents={agents}
@@ -3227,8 +3321,8 @@ function App() {
             <AgentCustomizationPanel 
               ownedDecorations={ownedDecorations}
               activeDecoration={activeDecoration}
-              onActivateDecoration={activateDecoration}
-              onDeactivateDecoration={deactivateDecoration}
+              onActivateDecoration={handleActivateDecoration}
+              onDeactivateDecoration={handleDeactivateDecoration}
             />
             
             {/* Botón para abrir tienda */}
@@ -3242,7 +3336,7 @@ function App() {
               </button>
             </div>
             
-            {/* Información de monedas */}
+            {/* Información de Leuros */}
             {levelData?.user?.coins !== undefined && (
               <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-yellow p-4 text-center">
                 <p className="text-gray-400 text-sm mb-2">Tu saldo actual</p>
@@ -3250,7 +3344,7 @@ function App() {
                   <span className="text-3xl font-bold text-retro-yellow">{levelData.user.coins}</span>
                   <span className="text-retro-yellow text-xl">🪙</span>
                 </div>
-                <p className="text-gray-500 text-xs mt-2">Gana monedas subiendo de nivel</p>
+                <p className="text-gray-500 text-xs mt-2">Gana Leuros subiendo de nivel</p>
               </div>
             )}
             
@@ -3295,8 +3389,8 @@ function App() {
         coins={levelData?.user?.coins || 0}
         ownedDecorations={ownedDecorations}
         activeDecoration={activeDecoration}
-        onBuyDecoration={buyDecoration}
-        onSetActiveDecoration={activateDecoration}
+        onBuyDecoration={handleBuyDecoration}
+        onSetActiveDecoration={handleActivateDecoration}
       />
 
       <footer className="border-t border-white/10 py-4 mt-8">
