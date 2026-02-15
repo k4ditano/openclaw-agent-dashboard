@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare, Server, Gauge, TrendingUp, CalendarDays } from 'lucide-react'
+import { Terminal, Code, Network, GitPullRequest, Cpu, Activity, Clock, Zap, Lock, Eye, EyeOff, Maximize2, X, Search, Download, Bell, AlertTriangle, BarChart3, History, FileJson, FileText, Filter, RefreshCw, Sun, Moon, MessageSquare, Server, Gauge, TrendingUp, CalendarDays, ShoppingCart } from 'lucide-react'
+
+// Componentes de niveles
+import { LevelBadge } from './components/LevelBadge'
+import { LevelProgressBar } from './components/LevelProgressBar'
+import { CoinDisplay } from './components/CoinDisplay'
+import { LevelUpAnimation } from './components/LevelUpAnimation'
+import { DecorationShop, getDecorationById, useDecorations } from './components/DecorationShop'
+import { AgentCustomizationPanel } from './components/AgentCustomizationPanel'
 
 // =============================================================================
 // THEME CONTEXT - Dark/Light Theme
@@ -1066,8 +1074,12 @@ function useAgentStatus() {
   return { status, loading, error, connected }
 }
 
-function AgentCard({ agent, isSelected, onClick, agentData }) {
+function AgentCard({ agent, isSelected, onClick, agentData, levelData, decoration }) {
   const data = agentData?.[agent.id] || {}
+  const userLevel = levelData?.user || {}
+  
+  // Obtener datos de la decoración activa
+  const activeDecoration = decoration ? getDecorationById(decoration) : null
   
   // Determinar clase de estado
   const getStatusClass = (status) => {
@@ -1085,6 +1097,46 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
     }
   }
   
+  // Determinar estilos de decoración
+  const getDecorationStyle = () => {
+    if (!activeDecoration) return {}
+    
+    if (activeDecoration.type === 'glow') {
+      return { boxShadow: activeDecoration.value }
+    }
+    if (activeDecoration.type === 'border') {
+      return { border: activeDecoration.value }
+    }
+    return {}
+  }
+  
+  // Icono de decoración
+  const renderDecorationIcon = () => {
+    if (!activeDecoration || activeDecoration.type !== 'icon') return null
+    
+    // Dynamic import del icono
+    const iconMap = {
+      crown: '👑', rocket: '🚀', target: '🎯', sun: '☀️', moon: '🌙', gem: '💎',
+      Zap: '⚡', Crown: '👑', Star: '⭐', Gem: '💎', Rocket: '🚀', 
+      Target: '🎯', Sun: '☀️', Moon: '🌙'
+    }
+    
+    const iconName = activeDecoration.value
+    const emoji = iconMap[iconName] || '✨'
+    
+    return (
+      <div 
+        className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center z-10 animate-bounce"
+        style={{ 
+          backgroundColor: activeDecoration.borderColor,
+          boxShadow: `0 0 10px ${activeDecoration.borderColor}`
+        }}
+      >
+        <span className="text-xs">{emoji}</span>
+      </div>
+    )
+  }
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -1093,15 +1145,21 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
       onClick={onClick}
       className={`
         relative p-2 sm:p-3 md:p-4 rounded-lg cursor-pointer transition-all
-        bg-white/50 dark:bg-black/50 border-2 ${agent.borderColor}
+        bg-white/50 dark:bg-black/50 
+        ${activeDecoration?.type === 'border' ? '' : `border-2 ${agent.borderColor}`}
         ${isSelected ? 'ring-2 ring-offset-2 ring-offset-gray-100 dark:ring-offset-black' : ''}
         ${data.status === 'error' ? 'border-retro-red' : ''}
       `}
       style={{ 
-        boxShadow: isSelected ? `0 0 20px ${agent.glowColor}40` : 
-                   data.status === 'error' ? '0 0 20px #ef444440' : 'none' 
+        boxShadow: activeDecoration?.type === 'glow' 
+          ? activeDecoration.value 
+          : (isSelected ? `0 0 20px ${agent.glowColor}40` : 
+             data.status === 'error' ? '0 0 20px #ef444440' : 'none'),
+        ...(activeDecoration?.type === 'border' ? { border: activeDecoration.value } : {})
       }}
     >
+      {/* Icono de decoración */}
+      {renderDecorationIcon()}
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         <PixelCreature type={agent.id} size={40} sm={48} md={64} isTalking={data.status === 'running'} image={agent.image} />
         <div className="flex-1 min-w-0">
@@ -1110,12 +1168,32 @@ function AgentCard({ agent, isSelected, onClick, agentData }) {
             <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded ${getStatusClass(data.status)}`}>
               {data.status?.toUpperCase() || 'OFFLINE'}
             </span>
+            {/* Level Badge */}
+            {userLevel.level && (
+              <LevelBadge level={userLevel.level} size="sm" />
+            )}
           </div>
           <p className="text-xs text-gray-500 truncate hidden sm:block">{data.task || 'Sin actividad'}</p>
+          {/* Level Progress Bar */}
+          {userLevel.level && userLevel.xpForNextLevel && (
+            <div className="hidden md:block mt-1">
+              <LevelProgressBar 
+                currentXP={userLevel.currentXP} 
+                xpForNextLevel={userLevel.xpForNextLevel}
+                level={userLevel.level}
+                showLabel={false}
+                size="sm"
+              />
+            </div>
+          )}
         </div>
-        <div className="text-right flex-shrink-0">
+        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
           <div className={`text-base sm:text-xl font-bold ${agent.color}`}>{data.progress || 0}%</div>
           <div className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">PROGRESS</div>
+          {/* Coin Display */}
+          {userLevel.coins !== undefined && (
+            <CoinDisplay coins={userLevel.coins} size="sm" showLabel={false} />
+          )}
         </div>
       </div>
     </motion.div>
@@ -1359,6 +1437,31 @@ function ActivityCharts({ agentStatus }) {
     
     // Refresh cada 10 segundos
     const interval = setInterval(fetchHourlyActivity, 10000)
+    return () => clearInterval(interval)
+  }, [])
+  
+  // Fetch de datos de niveles
+  useEffect(() => {
+    async function fetchLevelData() {
+      const token = localStorage.getItem('jwt_token')
+      if (!token) return
+      
+      try {
+        const res = await fetch('/api/levels', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setLevelData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching level data:', error)
+      }
+    }
+    
+    fetchLevelData()
+    // Refresh cada 30 segundos
+    const interval = setInterval(fetchLevelData, 30000)
     return () => clearInterval(interval)
   }, [])
   
@@ -2676,8 +2779,29 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState(agents[0])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms' | 'errors'
+  const [activeTab, setActiveTab] = useState('metrics') // 'metrics' | 'heatmap' | 'prediction' | 'comms' | 'errors' | 'shop'
+  
+  // Estados para decoraciones
+  const [showShop, setShowShop] = useState(false)
+  const { 
+    ownedDecorations, 
+    activeDecoration, 
+    buyDecoration, 
+    activateDecoration, 
+    deactivateDecoration,
+    setOwnedDecorations,
+    setActiveDecoration
+  } = useDecorations([])
   const { status: agentStatus, loading: statusLoading } = useAgentStatus()
+  
+  // Estados para nivel de usuario y animación de level up
+  const [userLevelData, setUserLevelData] = useState(null)
+  const [levelData, setLevelData] = useState(null)
+  const [levelUpData, setLevelUpData] = useState(null)
+  const [showLevelUpAnimation, setShowLevelUpAnimation] = useState(false)
+  
+  // Usar ref para evitar bucle infinito con previousLevel
+  const previousLevelRef = useRef(null)
   
   // Fix 1: Define hourlyActivity and dailyActivity at App level for heatmap
   const [hourlyActivity, setHourlyActivity] = useState([])
@@ -2705,6 +2829,30 @@ function App() {
     
     fetchActivityData()
     const interval = setInterval(fetchActivityData, 10000)
+    return () => clearInterval(interval)
+  }, [])
+  
+  // Fetch level data
+  useEffect(() => {
+    async function fetchLevelData() {
+      const token = localStorage.getItem('jwt_token')
+      if (!token) return
+      
+      try {
+        const res = await fetch('/api/levels', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setLevelData(data)
+        }
+      } catch (e) {
+        console.warn('Error fetching level data:', e.message)
+      }
+    }
+    
+    fetchLevelData()
+    const interval = setInterval(fetchLevelData, 30000)
     return () => clearInterval(interval)
   }, [])
   
@@ -2766,6 +2914,50 @@ function App() {
     return () => clearInterval(interval)
   }, [agentMessages.length, agentStatus?.communications])
 
+  // Fetch de datos de nivel y detectar level up
+  useEffect(() => {
+    async function fetchLevelData() {
+      const token = localStorage.getItem('jwt_token')
+      if (!token) return
+      
+      try {
+        const res = await fetch('/api/levels', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const newLevel = data?.user?.level || 1
+          const newCoins = data?.user?.coins || 0
+          
+          // Detectar cambio de nivel usando ref (evita bucle infinito)
+          if (previousLevelRef.current !== null && newLevel > previousLevelRef.current) {
+            // Calcular monedas ganadas (ejemplo: 50 monedas por nivel subido)
+            const levelsGained = newLevel - previousLevelRef.current
+            const coinsEarned = levelsGained * 50
+            
+            setLevelUpData({
+              fromLevel: previousLevelRef.current,
+              toLevel: newLevel,
+              coinsEarned: coinsEarned
+            })
+            setShowLevelUpAnimation(true)
+          }
+          
+          // Actualizar ref para la próxima detección
+          previousLevelRef.current = newLevel
+          setUserLevelData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching level data:', error)
+      }
+    }
+    
+    fetchLevelData()
+    // Refresh cada 30 segundos
+    const interval = setInterval(fetchLevelData, 30000)
+    return () => clearInterval(interval)
+  }, []) // Sin dependencias - solo se ejecuta al montar y por el interval
+
   const handleLogin = () => {
     // El token ya se guarda en LoginScreen
     setIsAuthenticated(true)
@@ -2791,6 +2983,17 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white overflow-x-hidden">
+      {/* Level Up Animation Overlay */}
+      {showLevelUpAnimation && levelUpData && (
+        <LevelUpAnimation
+          agentId="user"
+          fromLevel={levelUpData.fromLevel}
+          toLevel={levelUpData.toLevel}
+          coinsEarned={levelUpData.coinsEarned}
+          onComplete={() => setShowLevelUpAnimation(false)}
+        />
+      )}
+
       {/* Error Notifications - moved to Errors tab */}
 
       {/* Mobile-friendly header */}
@@ -2823,7 +3026,8 @@ function App() {
               { id: 'heatmap', label: 'Heatmap', icon: Activity },
               { id: 'prediction', label: 'Predicción', icon: Zap },
               { id: 'comms', label: 'Comms', icon: MessageSquare },
-              { id: 'errors', label: 'Errores', icon: AlertTriangle }
+              { id: 'errors', label: 'Errores', icon: AlertTriangle },
+              { id: 'shop', label: 'Tienda', icon: ShoppingCart }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -2855,7 +3059,9 @@ function App() {
               isSelected={selectedAgent.id === agent.id} 
               onClick={() => setSelectedAgent(agent)}
               agentData={agentStatus?.agents}
+              levelData={levelData}
               isTalking={talkingAgent === agent.id}
+              decoration={activeDecoration}
             />
           ))}
         </div>
@@ -3013,7 +3219,85 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Shop Tab - Tienda de Decoraciones */}
+        {activeTab === 'shop' && (
+          <div className="space-y-4 sm:space-y-6">
+            {/* Panel de personalización */}
+            <AgentCustomizationPanel 
+              ownedDecorations={ownedDecorations}
+              activeDecoration={activeDecoration}
+              onActivateDecoration={activateDecoration}
+              onDeactivateDecoration={deactivateDecoration}
+            />
+            
+            {/* Botón para abrir tienda */}
+            <div className="text-center">
+              <button
+                onClick={() => setShowShop(true)}
+                className="bg-gradient-to-r from-retro-purple to-retro-pink text-white font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 mx-auto"
+              >
+                <ShoppingCart size={20} />
+                Abrir Tienda de Decoraciones
+              </button>
+            </div>
+            
+            {/* Información de monedas */}
+            {levelData?.user?.coins !== undefined && (
+              <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-yellow p-4 text-center">
+                <p className="text-gray-400 text-sm mb-2">Tu saldo actual</p>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-3xl font-bold text-retro-yellow">{levelData.user.coins}</span>
+                  <span className="text-retro-yellow text-xl">🪙</span>
+                </div>
+                <p className="text-gray-500 text-xs mt-2">Gana monedas subiendo de nivel</p>
+              </div>
+            )}
+            
+            {/* Vista previa de decoraciones disponibles */}
+            <div className="bg-white/60 dark:bg-black/60 rounded-lg border-2 border-retro-cyan p-4">
+              <h3 className="text-retro-cyan font-mono text-sm mb-4 flex items-center gap-2">
+                <ShoppingCart size={16} />
+                CATÁLOGO DE DECORACIONES
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { type: 'Glows', desc: 'Auras brillantes', color: '#06b6d4', count: 4 },
+                  { type: 'Bordes', desc: 'Efectos de borde', color: '#ec4899', count: 4 },
+                  { type: 'Iconos', desc: 'Iconos decorativos', color: '#fbbf24', count: 6 },
+                  { type: 'Bundles', desc: 'Packs especiales', color: '#8b5cf6', count: 1 }
+                ].map(item => (
+                  <div 
+                    key={item.type}
+                    className="bg-white/10 rounded-lg p-3 text-center"
+                    style={{ borderColor: item.color }}
+                  >
+                    <div 
+                      className="text-lg font-bold"
+                      style={{ color: item.color }}
+                    >
+                      {item.type}
+                    </div>
+                    <div className="text-xs text-gray-400">{item.desc}</div>
+                    <div className="text-xs text-gray-500 mt-1">{item.count} items</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Modal de la Tienda de Decoraciones */}
+      <DecorationShop 
+        isOpen={showShop}
+        onClose={() => setShowShop(false)}
+        coins={levelData?.user?.coins || 0}
+        ownedDecorations={ownedDecorations}
+        activeDecoration={activeDecoration}
+        onBuyDecoration={buyDecoration}
+        onSetActiveDecoration={activateDecoration}
+      />
 
       <footer className="border-t border-white/10 py-4 mt-8">
         <div className="text-center text-gray-600 text-xs">
